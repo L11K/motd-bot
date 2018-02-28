@@ -341,11 +341,11 @@ client.on('message', msg => {
     }
 
     // MOVIE OF THE DAY COMMAND
-    else if (msg.content.toLowerCase() == '!movie' && msg.channel.id == tokens.CHANNEL_ID || msg.content.toLowerCase().includes('what should i watch') && msg.channel.id == tokens.CHANNEL_ID || msg.content.toLowerCase().includes('what i should watch') && msg.channel.id == tokens.CHANNEL_ID || msg.content.toLowerCase().includes('what movie should i watch') && msg.channel.id == tokens.CHANNEL_ID || msg.content.toLowerCase().includes('what movie i should watch') && msg.channel.id == tokens.CHANNEL_ID || msg.content.toLowerCase().includes('movie of the day') && msg.channel.id == tokens.CHANNEL_ID) {
+    else if (msg.content.toLowerCase() == `${tokens.PREFIX}movie` && msg.channel.id == tokens.CHANNEL_ID || msg.content.toLowerCase().includes('what should i watch') && msg.channel.id == tokens.CHANNEL_ID || msg.content.toLowerCase().includes('what i should watch') && msg.channel.id == tokens.CHANNEL_ID || msg.content.toLowerCase().includes('what movie should i watch') && msg.channel.id == tokens.CHANNEL_ID || msg.content.toLowerCase().includes('what movie i should watch') && msg.channel.id == tokens.CHANNEL_ID || msg.content.toLowerCase().includes('movie of the day') && msg.channel.id == tokens.CHANNEL_ID) {
         sendEmbed()
     }
 
-    else if (msg.content.toLowerCase() == '!randmovie' && msg.channel.id == tokens.CHANNEL_ID || msg.content.toLowerCase().includes('netflix and chill') && msg.channel.id == tokens.CHANNEL_ID) {
+    else if (msg.content.toLowerCase() == `${tokens.PREFIX}randmovie` && msg.channel.id == tokens.CHANNEL_ID || msg.content.toLowerCase().includes('netflix and chill') && msg.channel.id == tokens.CHANNEL_ID) {
         var recChannel = client.channels.find('id', tokens.RECOMMENDATIONS_ID);
         msg.reply("let me see what I can find...")
                     .then(console.log(`Getting random movie for ${msg.author.tag}`))
@@ -413,7 +413,7 @@ client.on('message', msg => {
                             },
                             {
                                 name: "Not the droid you're looking for?",
-                                value: "Type **!randmovie** to get another suggestion!"
+                                value: `Type **${tokens.PREFIX}randmovie** to get another suggestion!`
                             },
                             {
                                 name: '\u200b',
@@ -436,12 +436,12 @@ client.on('message', msg => {
     }
 
     // Set embed
-    else if (msg.content.toLowerCase() == '!testset' && msg.author.id == 204528346049150976) {
+    else if (msg.content.toLowerCase() == '!testset' && msg.author.id == tokens.ADMIN_ID) {
         setEmbed()
     }
 
     // Get embed
-    else if (msg.content.toLowerCase() == '!testsend' && msg.author.id == 204528346049150976) {
+    else if (msg.content.toLowerCase() == '!testsend' && msg.author.id == tokens.ADMIN_ID) {
         sendEmbed()
     }
 });
@@ -532,7 +532,7 @@ function setEmbed() {
                             },
                             {
                                 name: "Not the droid you're looking for?",
-                                value: "Type **!randmovie** to get another suggestion!"
+                                value: `Type **${tokens.PREFIX}randmovie** to get another suggestion!`
                             },
                             {
                                 name: '\u200b',
