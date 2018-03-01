@@ -93,6 +93,8 @@ client.on('message', msg => {
 
         var url = Array.from(getURL(msg.content));
 
+        console.log(url.length)
+
         var isUnique = true;
 
         msg.channel.fetchMessages()
@@ -115,15 +117,13 @@ client.on('message', msg => {
                     }
                 })) {
                     console.log(`Message is unique, attempting to scrape URL`)
-                    if (url[0].includes('http://') || url[0].includes('https://')) {
-                        scrapeURL();
+                    if (url.length > 0) {
+                        scrapeURL()
                     } else {
+                        console.log('Link was invalid, deleting message and notifying user')
                         msg.delete()
-                            .then(msg => {
-                                console.log(`Notifying ${msg.author.username} their message was deleted.`)
-                                if (!msg.author.bot) msg.author.send("The following message has been deleted from **#" + msg.channel.name + "** as it is not a valid link (http:// or https://).\n```" + msg.content + "```")
-                            })
-                            .catch(console.error);
+                            .then(message => message.author.send("The following message has been deleted from **#" + msg.channel.name + "** as it is not a valid link.\n```" + msg.content + "```"))
+                            .catch(console.error())
                     }
                 }
             })
@@ -131,228 +131,238 @@ client.on('message', msg => {
         function scrapeURL() {
 
             if (url.length > 0) {
-                request(url[0], (error, response, html) => {
-                    if (error) console.log(error)
-                    if (response.statusCode == 200) {
-                        makeRequest();
-                    } else {
-                        console.log('Link was invalid, deleting message and notifying user')
-                        msg.delete()
-                            .then(message => message.author.send("The following message has been deleted from **#" + msg.channel.name + "** as it is not a valid link.\n```" + msg.content + "```"))
-                            .catch(console.error())
-                    }
-                })
-                function makeRequest() {
-                    if (url[0].includes('imdb.com/title/') && isUnique) {
-
-                        if (url[0].includes('m.imdb.com')) url[0] = url[0].replace('m.', 'www.');
-
-                        console.log(`[MOVIE REQUEST] (${date()} @${date(true)}): Making request for IMDB URL ${url[0]}, details:\n` +
-                            `        GUILD: ${msg.guild.name}\n` +
-                            `        -  GUILD_ID: ${msg.guild.id}\n` +
-                            `        AUTHOR: ${msg.author.username}\n` +
-                            `        -  OWNER_ID: ${msg.author.id}`);
-
-                        var isMovie = true;
-
-                        request(url[0], function (error, response, html) {
-                            if (!error) {
-                                var $ = cheerio.load(html)
-
-                                $('.subtext').filter(function () {
-                                    var data = $(this);
-
-                                    var isTV = data.children().first()[0].attribs.content;
-
-                                    if (isTV != undefined) {
-                                        if (isTV.includes('TV')) isMovie = false;
-                                    } else {
-                                        console.log(`Not certain if this is a movie, still attempting to scrape information`)
-                                    }
-
-                                })
-
-                                if (isMovie) {
-                                    request(url[0], function (error, response, html) {
-                                        if (!error) {
-
-                                            var $ = cheerio.load(html);
-
-                                            var title, director, release, rating;
-                                            var results = { title: "", director: "", release: "", rating: "", url: url[0], user: msg.author.id };
-
-                                            $('.title_wrapper').filter(function () {
-                                                var data = $(this);
-
-                                                title = data.children().first().text();
-
-                                                results.title = title.trim().substring(0, title.indexOf('(') - 1);
-                                            })
-
-                                            $('span[itemprop="director"]').filter(function () {
-                                                var data = $(this);
-
-                                                director = data.text();
-
-                                                results.director = director.trim();
-                                            })
-
-                                            $('#titleYear').filter(function () {
-                                                var data = $(this);
-
-                                                release = data.children().last().text();
-
-                                                results.release = release.trim();
-                                            })
-
-                                            $('.ratingValue').filter(function () {
-                                                var data = $(this);
-
-                                                rating = data.text();
-
-                                                results.rating = rating.trim().substring(0, 3) + '0';
-                                            })
-
-                                            console.log(results);
-
-                                            if (results.rating == undefined || results.rating == '') {
-                                                results.rating = 0.01;
-                                                console.log(`There was no rating for this item, entering identifiable value for later`);
-                                            }
-
-                                            results.title = toUnicode(results.title);
-                                            results.director = toUnicode(results.director);
-
-                                            con.query(`SELECT title FROM suggested WHERE title="${results.title}" AND releaseYear=${results.release}`, function (e, rows, fields) {
-                                                if (e) console.log(e);
-                                                if (rows.length == 0) {
-                                                    console.log('Entry does not exist, inserting data into table')
-                                                    con.query(`INSERT INTO suggested VALUES ("${results.title}", '${results.director}', ${results.release}, ${results.rating}, '${results.url}', '${results.user}')`, function (error, result, field, ) {
-                                                        if (error) throw error;
-                                                        console.log(`Success: affected rows: ${result.affectedRows}`);
-                                                        msg.reply(`got it! **${results.title}** was added to the database!`)
-                                                    });
-                                                } else {
-                                                    console.log('Entry exists, deleting message')
-                                                    msg.delete()
-                                                        .then(msg => msg.author.send("The following message has been deleted from **#" + msg.channel.name + "** as it has already been recommended.\n```" + msg.content + "```"))
-                                                        .catch(console.error);
-                                                }
-                                            })
-                                        } else {
-                                            console.log(error)
-                                        }
-                                    });
-                                } else {
-                                    console.log('DELETING MESSAGE')
-                                    msg.delete()
-                                        .then(msg => msg.author.send("The following message has been deleted from **#" + msg.channel.name + "** as it does not fit the content guidelines.\n```" + msg.content + "```"))
-                                        .catch(console.error);
-                                }
-                            } else console.log(error)
-                        })
-                    } else if (url[0].includes('letterboxd.com/film/') && isUnique || url[0].includes('boxd.it') && isUnique) {
-                        console.log(`[MOVIE REQUEST] (${date()} @${date(true)}): Making request for Letterboxd URL ${url[0]}, details:\n` +
-                            `        GUILD: ${msg.guild.name}\n` +
-                            `        -  GUILD_ID: ${msg.guild.id}\n` +
-                            `        AUTHOR: ${msg.author.username}\n` +
-                            `        -  AUTHOR_ID: ${msg.author.id}\n`);
-
-                        if (url[0].includes('boxd.it')) {
-                            console.log(`Attempting to expand url ${url[0]}`)
-                            unshort(url[0], (err, url) => {
-                                if (!err) {
-                                    console.log(`Expansion on Letterboxd link successful! Expanded URL: ${url}`)
-                                    url[0] = url;
-                                } else console.log(`There was an error attempting to expand ${url[0]}:\n${err}`)
-                            })
+                if (url[0].includes('http://') || url[0].includes('https://')) {
+                    request(url[0], (error, response, html) => {
+                        if (error) console.log(error)
+                        if (response.statusCode == 200) {
+                            makeRequest();
+                        } else {
+                            console.log('Link was invalid, deleting message and notifying user')
+                            msg.delete()
+                                .then(message => message.author.send("The following message has been deleted from **#" + msg.channel.name + "** as it is not a valid link.\n```" + msg.content + "```"))
+                                .catch(console.error())
                         }
+                    })
+                    function makeRequest() {
+                        if (url[0].includes('imdb.com/title/') && isUnique) {
 
-                        request(url[0], function (error, response, html) {
-                            if (!error) {
-                                var $ = cheerio.load(html);
+                            if (url[0].includes('m.imdb.com')) url[0] = url[0].replace('m.', 'www.');
 
-                                var title, director, release, rating;
-                                var results = { title: "", director: "", release: "", rating: "", url: url[0], user: msg.author.id };
+                            console.log(`[MOVIE REQUEST] (${date()} @${date(true)}): Making request for IMDB URL ${url[0]}, details:\n` +
+                                `        GUILD: ${msg.guild.name}\n` +
+                                `        -  GUILD_ID: ${msg.guild.id}\n` +
+                                `        AUTHOR: ${msg.author.username}\n` +
+                                `        -  OWNER_ID: ${msg.author.id}`);
 
-                                $('.headline-1').filter(function () {
-                                    var data = $(this);
+                            var isMovie = true;
 
-                                    title = data.text();
+                            request(url[0], function (error, response, html) {
+                                if (!error) {
+                                    var $ = cheerio.load(html)
 
-                                    results.title = title.trim();
-                                })
-
-                                $('#featured-film-header').filter(function () {
-                                    $('span.prettify').filter(function () {
+                                    $('.subtext').filter(function () {
                                         var data = $(this);
 
-                                        director = data.text();
+                                        var isTV = data.children().first()[0].attribs.content;
 
-                                        results.director = director;
+                                        if (isTV != undefined) {
+                                            if (isTV.includes('TV')) isMovie = false;
+                                        } else {
+                                            console.log(`Not certain if this is a movie, still attempting to scrape information`)
+                                        }
+
                                     })
-                                })
 
-                                $('.number').filter(function () {
-                                    var data = $(this);
+                                    if (isMovie) {
+                                        request(url[0], function (error, response, html) {
+                                            if (!error) {
 
-                                    release = data.text();
+                                                var $ = cheerio.load(html);
 
-                                    results.release = release.trim();
-                                })
+                                                var title, director, release, rating;
+                                                var results = { title: "", director: "", release: "", rating: "", url: url[0], user: msg.author.id };
 
-                                $('.average-rating').filter(function () {
-                                    var data = $(this);
+                                                $('.title_wrapper').filter(function () {
+                                                    var data = $(this);
 
-                                    rating = data.children()[1].attribs.content;
+                                                    title = data.children().first().text();
 
-                                    results.rating = rating.trim();
-                                })
+                                                    results.title = title.trim().substring(0, title.indexOf('(') - 1);
+                                                })
 
-                                console.log(results)
+                                                $('span[itemprop="director"]').filter(function () {
+                                                    var data = $(this);
 
-                                if (results.rating == undefined || results.rating == '') {
-                                    results.rating = 0.01;
-                                    console.log(`There was no rating for this item, entering identifiable value for later`);
-                                }
-                                results.title = toUnicode(results.title)
-                                results.director = toUnicode(results.director);
+                                                    director = data.text();
 
-                                console.log(`Performing database precheck for ${results.title}`);
+                                                    results.director = director.trim();
+                                                })
 
-                                con.query(`SELECT title FROM suggested WHERE title="${results.title}" AND releaseYear=${results.release}`, function (e, rows, fields) {
-                                    if (e) console.log(e);
-                                    if (rows.length == 0) {
-                                        console.log('Entry does not exist, inserting data into table ')
-                                        con.query(`INSERT INTO suggested VALUES ("${results.title}", "${results.director}", ${results.release}, ${results.rating}, "${results.url}", "${results.user}")`, function (error, result, field) {
-                                            if (error) throw error;
-                                            console.log(`Success: affected rows: ${result.affectedRows}`);
-                                            msg.reply(`got it! **${results.title}** was added to the database!`)
+                                                $('#titleYear').filter(function () {
+                                                    var data = $(this);
+
+                                                    release = data.children().last().text();
+
+                                                    results.release = release.trim();
+                                                })
+
+                                                $('.ratingValue').filter(function () {
+                                                    var data = $(this);
+
+                                                    rating = data.text();
+
+                                                    results.rating = rating.trim().substring(0, 3) + '0';
+                                                })
+
+                                                console.log(results);
+
+                                                if (results.rating == undefined || results.rating == '') {
+                                                    results.rating = 0.01;
+                                                    console.log(`There was no rating for this item, entering identifiable value for later`);
+                                                }
+
+                                                results.title = toUnicode(results.title);
+                                                results.director = toUnicode(results.director);
+
+                                                con.query(`SELECT title FROM suggested WHERE title="${results.title}" AND releaseYear=${results.release}`, function (e, rows, fields) {
+                                                    if (e) console.log(e);
+                                                    if (rows.length == 0) {
+                                                        console.log('Entry does not exist, inserting data into table')
+                                                        con.query(`INSERT INTO suggested VALUES ("${results.title}", '${results.director}', ${results.release}, ${results.rating}, '${results.url}', '${results.user}')`, function (error, result, field, ) {
+                                                            if (error) throw error;
+                                                            console.log(`Success: affected rows: ${result.affectedRows}`);
+                                                            msg.reply(`got it! **${results.title}** was added to the database!`)
+                                                        });
+                                                    } else {
+                                                        console.log('Entry exists, deleting message')
+                                                        msg.delete()
+                                                            .then(msg => msg.author.send("The following message has been deleted from **#" + msg.channel.name + "** as it has already been recommended.\n```" + msg.content + "```"))
+                                                            .catch(console.error);
+                                                    }
+                                                })
+                                            } else {
+                                                console.log(error)
+                                            }
                                         });
                                     } else {
-                                        console.log('Entry exists, deleting message')
+                                        console.log('DELETING MESSAGE')
                                         msg.delete()
-                                            .then(msg => msg.author.send("The following message has been deleted from **#" + msg.channel.name + "** as it has already been recommended.\n```" + msg.content + "```"))
+                                            .then(msg => msg.author.send("The following message has been deleted from **#" + msg.channel.name + "** as it does not fit the content guidelines.\n```" + msg.content + "```"))
                                             .catch(console.error);
                                     }
-                                })
-                            } else {
-                                console.log(error)
-                            }
-                        });
-                    } else {
-                        console.log('DELETING MESSAGE')
-                        msg.delete()
-                            .then(msg => msg.author.send("The following message has been deleted from **#" + msg.channel.name + "** as it does not fit the content guidelines.\n```" + msg.content + "```"))
+                                } else console.log(error)
+                            })
+                        } else if (url[0].includes('letterboxd.com/film/') && isUnique || url[0].includes('boxd.it') && isUnique) {
+                            console.log(`[MOVIE REQUEST] (${date()} @${date(true)}): Making request for Letterboxd URL ${url[0]}, details:\n` +
+                                `        GUILD: ${msg.guild.name}\n` +
+                                `        -  GUILD_ID: ${msg.guild.id}\n` +
+                                `        AUTHOR: ${msg.author.username}\n` +
+                                `        -  AUTHOR_ID: ${msg.author.id}\n`);
 
-                            .catch(console.error);
+                            if (url[0].includes('boxd.it')) {
+                                console.log(`Attempting to expand url ${url[0]}`)
+                                unshort(url[0], (err, url) => {
+                                    if (!err) {
+                                        console.log(`Expansion on Letterboxd link successful! Expanded URL: ${url}`)
+                                        url[0] = url;
+                                    } else console.log(`There was an error attempting to expand ${url[0]}:\n${err}`)
+                                })
+                            }
+
+                            request(url[0], function (error, response, html) {
+                                if (!error) {
+                                    var $ = cheerio.load(html);
+
+                                    var title, director, release, rating;
+                                    var results = { title: "", director: "", release: "", rating: "", url: url[0], user: msg.author.id };
+
+                                    $('.headline-1').filter(function () {
+                                        var data = $(this);
+
+                                        title = data.text();
+
+                                        results.title = title.trim();
+                                    })
+
+                                    $('#featured-film-header').filter(function () {
+                                        $('span.prettify').filter(function () {
+                                            var data = $(this);
+
+                                            director = data.text();
+
+                                            results.director = director;
+                                        })
+                                    })
+
+                                    $('.number').filter(function () {
+                                        var data = $(this);
+
+                                        release = data.text();
+
+                                        results.release = release.trim();
+                                    })
+
+                                    $('.average-rating').filter(function () {
+                                        var data = $(this);
+
+                                        rating = data.children()[1].attribs.content;
+
+                                        results.rating = rating.trim();
+                                    })
+
+                                    console.log(results)
+
+                                    if (results.rating == undefined || results.rating == '') {
+                                        results.rating = 0.01;
+                                        console.log(`There was no rating for this item, entering identifiable value for later`);
+                                    }
+                                    results.title = toUnicode(results.title)
+                                    results.director = toUnicode(results.director);
+
+                                    console.log(`Performing database precheck for ${results.title}`);
+
+                                    con.query(`SELECT title FROM suggested WHERE title="${results.title}" AND releaseYear=${results.release}`, function (e, rows, fields) {
+                                        if (e) console.log(e);
+                                        if (rows.length == 0) {
+                                            console.log('Entry does not exist, inserting data into table ')
+                                            con.query(`INSERT INTO suggested VALUES ("${results.title}", "${results.director}", ${results.release}, ${results.rating}, "${results.url}", "${results.user}")`, function (error, result, field) {
+                                                if (error) throw error;
+                                                console.log(`Success: affected rows: ${result.affectedRows}`);
+                                                msg.reply(`got it! **${results.title}** was added to the database!`)
+                                            });
+                                        } else {
+                                            console.log('Entry exists, deleting message')
+                                            msg.delete()
+                                                .then(msg => msg.author.send("The following message has been deleted from **#" + msg.channel.name + "** as it has already been recommended.\n```" + msg.content + "```"))
+                                                .catch(console.error);
+                                        }
+                                    })
+                                } else {
+                                    console.log(error)
+                                }
+                            });
+                        } else {
+                            console.log('DELETING MESSAGE')
+                            msg.delete()
+                                .then(msg => msg.author.send("The following message has been deleted from **#" + msg.channel.name + "** as it does not fit the content guidelines.\n```" + msg.content + "```"))
+
+                                .catch(console.error);
+                        }
                     }
+                } else {
+                    console.log('DELETING MESSAGE')
+                    msg.delete()
+                        .then(msg => {
+                            console.log(`Notifying ${msg.author.username} their message was deleted.`)
+                            if (!msg.author.bot) msg.author.send("The following message has been deleted from **#" + msg.channel.name + "** as it is not a valid link (http:// or https://).\n```" + msg.content + "```")
+                        })
+                        .catch(console.error);
+                    ;
                 }
             } else {
-                console.log('DELETING MESSAGE')
                 msg.delete()
                     .then(msg => msg.author.send("The following message has been deleted from **#" + msg.channel.name + "** as it does not fit the content guidelines.\n```" + msg.content + "```"))
-                    .catch(console.error);
+                    .catch(console.error)
             }
         }
     }
@@ -609,13 +619,13 @@ function sendEmbed() {
 }
 
 function toUnicode(str) {
-	return str.split('').map(function (value, index, array) {
-		var temp = value.charCodeAt(0).toString(16).toUpperCase();
-		if (temp.length > 2) {
-			return '\\u' + temp;
-		}
-		return value;
-	}).join('');
+    return str.split('').map(function (value, index, array) {
+        var temp = value.charCodeAt(0).toString(16).toUpperCase();
+        if (temp.length > 2) {
+            return '\\u' + temp;
+        }
+        return value;
+    }).join('');
 }
 
 function ValidURL(str) {
