@@ -26,7 +26,7 @@ con.connect(function (err) {
 client.on('ready', () => {
     console.log(`[INIT] (${date()} @${date(true)}): Logged into ${client.user.tag}\n` +
         `    Guilds being moderated:`);
-    client.user.setActivity('IN PRIVATE TESTING')
+    client.user.setActivity(`MOTD | ${tokens.PREFIX}movie`)
     client.guilds.forEach((guild) => {
         guildStamp = guild.joinedAt;
         console.log(
@@ -115,7 +115,16 @@ client.on('message', msg => {
                     }
                 })) {
                     console.log(`Message is unique, attempting to scrape URL`)
-                    scrapeURL();
+                    if (url[0].includes('http://') || url[0].includes('https://')) {
+                        scrapeURL();
+                    } else {
+                        msg.delete()
+                            .then(msg => {
+                                console.log(`Notifying ${msg.author.username} their message was deleted.`)
+                                if (!msg.author.bot) msg.author.send("The following message has been deleted from **#" + msg.channel.name + "** as it is not a valid link (http:// or https://).\n```" + msg.content + "```")
+                            })
+                            .catch(console.error);
+                    }
                 }
             })
 
@@ -206,7 +215,13 @@ client.on('message', msg => {
 
                                             console.log(results);
 
-                                            if (results.rating == undefined || results.rating == '') results.rating = 0.01;
+                                            if (results.rating == undefined || results.rating == '') {
+                                                results.rating = 0.01;
+                                                console.log(`There was no rating for this item, entering identifiable value for later`);
+                                            }
+
+                                            results.title = toUnicode(results.title);
+                                            results.director = toUnicode(results.director);
 
                                             con.query(`SELECT title FROM suggested WHERE title="${results.title}" AND releaseYear=${results.release}`, function (e, rows, fields) {
                                                 if (e) console.log(e);
@@ -300,6 +315,8 @@ client.on('message', msg => {
                                     results.rating = 0.01;
                                     console.log(`There was no rating for this item, entering identifiable value for later`);
                                 }
+                                results.title = toUnicode(results.title)
+                                results.director = toUnicode(results.director);
 
                                 console.log(`Performing database precheck for ${results.title}`);
 
@@ -307,7 +324,7 @@ client.on('message', msg => {
                                     if (e) console.log(e);
                                     if (rows.length == 0) {
                                         console.log('Entry does not exist, inserting data into table ')
-                                        con.query(`INSERT INTO suggested VALUES ("${results.title}", '${results.director}', ${results.release}, ${results.rating}, '${results.url}', '${results.user}')`, function (error, result, field) {
+                                        con.query(`INSERT INTO suggested VALUES ("${results.title}", "${results.director}", ${results.release}, ${results.rating}, "${results.url}", "${results.user}")`, function (error, result, field) {
                                             if (error) throw error;
                                             console.log(`Success: affected rows: ${result.affectedRows}`);
                                             msg.reply(`got it! **${results.title}** was added to the database!`)
@@ -348,8 +365,8 @@ client.on('message', msg => {
     else if (msg.content.toLowerCase() == `${tokens.PREFIX}randmovie` && msg.channel.id == tokens.CHANNEL_ID || msg.content.toLowerCase().includes('netflix and chill') && msg.channel.id == tokens.CHANNEL_ID) {
         var recChannel = client.channels.find('id', tokens.RECOMMENDATIONS_ID);
         msg.reply("let me see what I can find...")
-                    .then(console.log(`Getting random movie for ${msg.author.tag}`))
-                    .catch(console.error());
+            .then(console.log(`Getting random movie for ${msg.author.tag}`))
+            .catch(console.error());
         let MOTD = {};
         con.query('SELECT * FROM suggested ORDER BY RAND() LIMIT 1', (e, r, f) => {
             if (e) throw e;
@@ -553,8 +570,8 @@ function setEmbed() {
                 //Let user know their movie was picked
                 let movieBoi = recChannel.guild.members.get(r[0].userTag);
                 movieBoi.send(`Congratulations! Your movie suggestion **${r[0].title}** was picked as movie of the day!`)
-                        .then("Message was sent to user!")
-                        .catch(console.error());
+                    .then("Message was sent to user!")
+                    .catch(console.error());
 
                 console.log(`Attempting to write embed to file`)
                 fs.writeFile('movie.json', JSON.stringify(MOTD), (err) => {
@@ -565,7 +582,7 @@ function setEmbed() {
 
             console.log('Inserting into used database')
 
-            con.query(`INSERT INTO used VALUES ('${r[0].title}', '${r[0].director}', ${r[0].releaseYear}, ${r[0].rating}, '${r[0].url}', '${r[0].userTag}')`, (error, results, fields) => {
+            con.query(`INSERT INTO used VALUES ("${r[0].title}", "${r[0].director}", ${r[0].releaseYear}, ${r[0].rating}, "${r[0].url}", "${r[0].userTag}")`, (error, results, fields) => {
                 if (error) throw error;
                 console.log(`Successfully entered into used DB, affected rows:  ${results.affectedRows}`);
             })
@@ -589,6 +606,16 @@ function sendEmbed() {
             .then(console.log('Sent embed to channel!'))
             .catch(console.error());
     });
+}
+
+function toUnicode(str) {
+	return str.split('').map(function (value, index, array) {
+		var temp = value.charCodeAt(0).toString(16).toUpperCase();
+		if (temp.length > 2) {
+			return '\\u' + temp;
+		}
+		return value;
+	}).join('');
 }
 
 function ValidURL(str) {
