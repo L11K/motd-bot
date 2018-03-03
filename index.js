@@ -39,23 +39,6 @@ client.on('ready', () => {
     })
 });
 
-client.on('guildCreate', (guild) => {
-    guild.owner.user.send("Ayo whas poppin :b:");
-    console.log(`[GUILD UPDATE] (${date()} @${date(true)}):    Bot added, details:\n` +
-        `        GUILD: ${guild.name}\n` +
-        `        -  GUILD_ID: ${guild.id}\n` +
-        `        OWNER: ${guild.owner.user.tag}\n` +
-        `        -  OWNER_ID: ${guild.owner.user.id}`);
-});
-
-client.on('guildDelete', (guild) => {
-    console.log(`[GUILD UPDATE] (${date()} @${date(true)}):    Bot kicked, details:\n` +
-        `        GUILD: ${guild.name}\n` +
-        `        -  GUILD_ID: ${guild.id}\n` +
-        `        OWNER: ${guild.owner.user.tag}\n` +
-        `        -  OWNER_ID: ${guild.owner.user.id}`);
-});
-
 client.on('message', msg => {
     // Letterboxd channel management
     if (msg.author.id !== tokens.BOT_ID && msg.channel.id === tokens.LETTERBOXD_ID) {
@@ -148,11 +131,10 @@ client.on('message', msg => {
 
                             if (url[0].includes('m.imdb.com')) url[0] = url[0].replace('m.', 'www.');
 
-                            console.log(`[MOVIE REQUEST] (${date()} @${date(true)}): Making request for IMDB URL ${url[0]}, details:\n` +
-                                `        GUILD: ${msg.guild.name}\n` +
-                                `        -  GUILD_ID: ${msg.guild.id}\n` +
+                            console.log(`[MOVIE REQUEST] (${date()} @${date(true)}): Making request for IMDB\n` +
+                                `        URL:  ${url[0]}\n` +
                                 `        AUTHOR: ${msg.author.username}\n` +
-                                `        -  OWNER_ID: ${msg.author.id}`);
+                                `        -  AUTHOR_ID: ${msg.author.id}\n`);
 
                             var isMovie = true;
 
@@ -253,9 +235,8 @@ client.on('message', msg => {
                                 } else console.log(error)
                             })
                         } else if (url[0].includes('letterboxd.com/film/') && isUnique || url[0].includes('boxd.it') && isUnique) {
-                            console.log(`[MOVIE REQUEST] (${date()} @${date(true)}): Making request for Letterboxd URL ${url[0]}, details:\n` +
-                                `        GUILD: ${msg.guild.name}\n` +
-                                `        -  GUILD_ID: ${msg.guild.id}\n` +
+                            console.log(`[MOVIE REQUEST] (${date()} @${date(true)}): Making request for Letterboxd\n` +
+                                `        URL:  ${url[0]}\n` +
                                 `        AUTHOR: ${msg.author.username}\n` +
                                 `        -  AUTHOR_ID: ${msg.author.id}\n`);
 
@@ -374,20 +355,16 @@ client.on('message', msg => {
         (msg.content.toLowerCase().includes('what movie should i watch') && (msg.channel.id == tokens.CHANNEL_ID || msg.channel.id == tokens.BAV_ID)) ||
         (msg.content.toLowerCase().includes('what movie i should watch') && (msg.channel.id == tokens.CHANNEL_ID || msg.channel.id == tokens.BAV_ID))) {
         console.log(`[MOTD REQUEST] (${date()} @${date(true)}): Sending the movie of the day, details:\n` +
-            `        GUILD: ${msg.guild.name}\n` +
-            `        -  GUILD_ID: ${msg.guild.id}\n` +
             `        AUTHOR: ${msg.author.username}\n` +
-            `        -  OWNER_ID: ${msg.author.id}`);
+            `        -  AUTHOR_ID: ${msg.author.id}`);
         sendEmbed(msg.channel.id);
     }
 
     else if ((msg.content.toLowerCase() == `${tokens.PREFIX}randmovie` && (msg.channel.id == tokens.CHANNEL_ID || msg.channel.id == tokens.BAV_ID)) ||
         (msg.content.toLowerCase().includes('netflix and chill') && (msg.channel.id == tokens.CHANNEL_ID || msg.channel.id == tokens.BAV_ID))) {
         console.log(`[RANDMOVIE REQUEST] (${date()} @${date(true)}): Sending random movie, details:\n` +
-            `        GUILD: ${msg.guild.name}\n` +
-            `        -  GUILD_ID: ${msg.guild.id}\n` +
             `        AUTHOR: ${msg.author.username}\n` +
-            `        -  OWNER_ID: ${msg.author.id}`);
+            `        -  AUTHOR_ID: ${msg.author.id}`);
         var recChannel = client.channels.find('id', tokens.RECOMMENDATIONS_ID);
         msg.reply("let me see what I can find...")
             .then(console.log(`Getting random movie for ${msg.author.tag}`))
