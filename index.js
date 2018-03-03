@@ -368,11 +368,26 @@ client.on('message', msg => {
     }
 
     // MOVIE OF THE DAY COMMAND
-    else if (msg.content.toLowerCase() == `${tokens.PREFIX}movie` && msg.channel.id == tokens.CHANNEL_ID || msg.content.toLowerCase().includes('what should i watch') && msg.channel.id == tokens.CHANNEL_ID || msg.content.toLowerCase().includes('what i should watch') && msg.channel.id == tokens.CHANNEL_ID || msg.content.toLowerCase().includes('what movie should i watch') && msg.channel.id == tokens.CHANNEL_ID || msg.content.toLowerCase().includes('what movie i should watch') && msg.channel.id == tokens.CHANNEL_ID || msg.content.toLowerCase().includes('movie of the day') && msg.channel.id == tokens.CHANNEL_ID) {
-        sendEmbed()
+    else if ((msg.content.toLowerCase() == `${tokens.PREFIX}movie` && (msg.channel.id == tokens.CHANNEL_ID || msg.channel.id == tokens.BAV_ID)) ||
+        (msg.content.toLowerCase().includes('what should i watch') && (msg.channel.id == tokens.CHANNEL_ID || msg.channel.id == tokens.BAV_ID)) ||
+        (msg.content.toLowerCase().includes('what i should watch') && (msg.channel.id == tokens.CHANNEL_ID || msg.channel.id == tokens.BAV_ID)) ||
+        (msg.content.toLowerCase().includes('what movie should i watch') && (msg.channel.id == tokens.CHANNEL_ID || msg.channel.id == tokens.BAV_ID)) ||
+        (msg.content.toLowerCase().includes('what movie i should watch') && (msg.channel.id == tokens.CHANNEL_ID || msg.channel.id == tokens.BAV_ID))) {
+        console.log(`[MOTD REQUEST] (${date()} @${date(true)}): Sending the movie of the day, details:\n` +
+            `        GUILD: ${msg.guild.name}\n` +
+            `        -  GUILD_ID: ${msg.guild.id}\n` +
+            `        AUTHOR: ${msg.author.username}\n` +
+            `        -  OWNER_ID: ${msg.author.id}`);
+        sendEmbed(msg.channel.id);
     }
 
-    else if (msg.content.toLowerCase() == `${tokens.PREFIX}randmovie` && msg.channel.id == tokens.CHANNEL_ID || msg.content.toLowerCase().includes('netflix and chill') && msg.channel.id == tokens.CHANNEL_ID) {
+    else if ((msg.content.toLowerCase() == `${tokens.PREFIX}randmovie` && (msg.channel.id == tokens.CHANNEL_ID || msg.channel.id == tokens.BAV_ID)) ||
+        (msg.content.toLowerCase().includes('netflix and chill') && (msg.channel.id == tokens.CHANNEL_ID || msg.channel.id == tokens.BAV_ID))) {
+        console.log(`[RANDMOVIE REQUEST] (${date()} @${date(true)}): Sending random movie, details:\n` +
+            `        GUILD: ${msg.guild.name}\n` +
+            `        -  GUILD_ID: ${msg.guild.id}\n` +
+            `        AUTHOR: ${msg.author.username}\n` +
+            `        -  OWNER_ID: ${msg.author.id}`);
         var recChannel = client.channels.find('id', tokens.RECOMMENDATIONS_ID);
         msg.reply("let me see what I can find...")
             .then(console.log(`Getting random movie for ${msg.author.tag}`))
@@ -391,18 +406,18 @@ client.on('message', msg => {
 
                         imageLink = $('.poster').find('img')[0].attribs.src;
 
-                        console.log('Image link: ' + imageLink)
+                        console.log('thumbnail url: ' + imageLink)
                         saveEmbed(imageLink);
                     } else console.log(error);
                 })
-            } else if (r[0].url.includes('letterboxd.com')) {
+            } else if (r[0].url.includes('letterboxd.com') || r[0].url.includes('boxd.it')) {
                 request(r[0].url, (error, response, html) => {
                     if (!error) {
                         var $ = cheerio.load(html);
 
                         imageLink = $('.film-poster').find('img')[0].attribs.src;
 
-                        console.log('Image link: ' + imageLink)
+                        console.log('thumbnail url: ' + imageLink)
                         saveEmbed(imageLink)
                     } else console.log(error);
                 })
@@ -457,7 +472,10 @@ client.on('message', msg => {
                         }
                     }
                 }
-                msg.channel.send(MOTD);
+                console.log(`Attempting to send embed for user ${msg.author.tag}`)
+                msg.channel.send(MOTD)
+                           .then(console.log("Embed was sent!"))
+                           .catch(console.error());
             }
         })
     }
@@ -485,13 +503,13 @@ schedule.scheduleJob('0 0-20/4 * * *', () => {
 
 function setEmbed() {
     console.log(`Attempting to set a new movie of the day!`)
-    var recChannel = client.channels.find('id', tokens.RECOMMENDATIONS_ID);
+    let recChannel = client.channels.find('id', tokens.RECOMMENDATIONS_ID);
+    let movieChannel = client.channels.find('id', tokens.CHANNEL_ID);
     let MOTD = {};
     con.query('CHECKSUM TABLE suggested, used', (error, rows, field) => {
         if (error) throw error;
         if (rows[0].Checksum == rows[1].Checksum) {
             console.log('Used database is full, deleting rows')
-            movieChannel.send("I've used up your suggestions, you may see duplicates.");
             con.query('DELETE QUICK FROM used');
         }
         getMovie()
@@ -510,18 +528,18 @@ function setEmbed() {
 
                         imageLink = $('.poster').find('img')[0].attribs.src;
 
-                        console.log('Image link: ' + imageLink)
+                        console.log('thumbnail url: ' + imageLink)
                         saveEmbed(imageLink);
                     } else console.log(error);
                 })
-            } else if (r[0].url.includes('letterboxd.com')) {
+            } else if (r[0].url.includes('letterboxd.com') || r[0].url.includes('boxd.it')) {
                 request(r[0].url, (error, response, html) => {
                     if (!error) {
                         var $ = cheerio.load(html);
 
                         imageLink = $('.film-poster').find('img')[0].attribs.src;
 
-                        console.log('Image link: ' + imageLink)
+                        console.log('thumbnail url: ' + imageLink)
                         saveEmbed(imageLink)
                     } else console.log(error);
                 })
@@ -577,32 +595,33 @@ function setEmbed() {
                     }
                 }
 
+                console.log('Done with MOTD, letting user know their movie was picked')
+
                 //Let user know their movie was picked
                 let movieBoi = recChannel.guild.members.get(r[0].userTag);
-                movieBoi.send(`Congratulations! Your movie suggestion **${r[0].title}** was picked as movie of the day!`)
-                    .then("Message was sent to user!")
+                movieBoi.send(`Congratulations! Your movie suggestion **${r[0].title}** was picked as movie of the day!`, MOTD)
+                    .then(() => {
+                        console.log(`Attempting to write embed to file`)
+                        fs.writeFile('movie.json', JSON.stringify(MOTD), (err) => {
+                            if (err) throw (err);
+                            console.log(`Wrote movie to file successfully!`);
+                            console.log('Attempting to insert into used database')
+
+                            con.query(`INSERT INTO used VALUES ("${r[0].title}", "${r[0].director}", ${r[0].releaseYear}, ${r[0].rating}, "${r[0].url}", "${r[0].userTag}")`, (error, results, fields) => {
+                                if (error) throw error;
+                                console.log(`Successfully entered into used DB, affected rows:  ${results.affectedRows}`);
+                            })
+                        })
+                    })
                     .catch(console.error());
-
-                console.log(`Attempting to write embed to file`)
-                fs.writeFile('movie.json', JSON.stringify(MOTD), (err) => {
-                    if (err) throw (err);
-                    console.log(`Wrote movie to file successfully!`);
-                })
             }
-
-            console.log('Inserting into used database')
-
-            con.query(`INSERT INTO used VALUES ("${r[0].title}", "${r[0].director}", ${r[0].releaseYear}, ${r[0].rating}, "${r[0].url}", "${r[0].userTag}")`, (error, results, fields) => {
-                if (error) throw error;
-                console.log(`Successfully entered into used DB, affected rows:  ${results.affectedRows}`);
-            })
 
         })
     }
 }
 
-function sendEmbed() {
-    let movieChannel = client.channels.find('id', tokens.CHANNEL_ID);
+function sendEmbed(idToSend = tokens.CHANNEL_ID) {
+    let movieChannel = client.channels.find('id', idToSend);
     console.log('Attempting to read file')
     let embed;
     fs.readFile('movie.json', (err, data) => {

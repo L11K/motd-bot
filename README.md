@@ -39,12 +39,12 @@ The bot collects IMDB and Letterboxd film suggestions from users and recommends 
 3. Copy the temp password at the last prompt, you will need this.
 4. Run the command `mysql -u root -p` and enter the password you copied from the installer.
 5. Once logged in to the root user, run `CREATE USER 'your_username' IDENTIFIED BY 'your_password';`
-6. Grant permissions to user using the command `GRANT PRIVILEGES ON *.* TO 'your_username'@'localhost' IDENTIFIED BY 'your_password';`
 
 ## Setup
 1. Clone the repository to your machine using `git clone https://github.com/jnwarner/motd-bot.git`
 2. Open the directory in a terminal and use the command `npm install` to install dependencies.
 3. Log into the MySQL account made when installing mysql using the command `mysql -u your_username -p`
 4. Run the db.sql file using `mysql -u your_username -p < /path/to/db.sql`, creating the tables for the bot.
-5. Insert the necessary data in a file named tokens.json (reference can be found in tokens.example.json)
-6. Done! You can start your bot using `node index.js` or use a process management service such as [PM2](http://pm2.keymetrics.io/) to run the bot!
+5. Grant permissions to user using the command `GRANT PRIVILEGES ON movies.* TO 'your_username'@'localhost' IDENTIFIED BY 'your_password';`
+6. Insert the necessary data in a file named tokens.json (reference can be found in tokens.example.json)
+7. Done! You can start your bot using `node index.js` or use a process management service such as [PM2](http://pm2.keymetrics.io/) to run the bot!
