@@ -167,9 +167,15 @@ client.on('message', msg => {
                                                 $('.title_wrapper').filter(function () {
                                                     var data = $(this);
 
-                                                    title = data.children().first().text();
+                                                    title = data.children().first().text().toString();
 
-                                                    results.title = title.trim().substring(0, title.indexOf('(') - 1);
+                                                    title = title.trim();
+                                                    
+                                                    let chopLengh = title.length - 7;
+                                                    
+                                                    title = title.substring(0, (title.length - 7));
+
+                                                    results.title = title;
                                                 })
 
                                                 $('span[itemprop="director"]').filter(function () {
