@@ -171,8 +171,6 @@ client.on('message', msg => {
 
                                                     title = title.trim();
                                                     
-                                                    let chopLengh = title.length - 7;
-                                                    
                                                     title = title.substring(0, (title.length - 7));
 
                                                     results.title = title;
