@@ -156,12 +156,13 @@ client.on('message', msg => {
                                     })
 
                                     if (isMovie) {
+                                        console.log(`Url is a movie, moving on!`);
                                         request(url[0], function (error, response, html) {
                                             if (!error) {
 
                                                 var $ = cheerio.load(html);
 
-                                                var title, director, release, rating;
+                                                var title, director, release, genres, runtime, rating;
                                                 var results = { title: "", director: "", release: "", rating: "", url: url[0], user: msg.author.id };
 
                                                 $('.title_wrapper').filter(function () {
@@ -170,6 +171,23 @@ client.on('message', msg => {
                                                     title = data.children().first().text();
 
                                                     results.title = title.trim().substring(0, title.indexOf('(') - 1);
+                                                })
+
+                                                $('span[itemprop="director"]').filter(function () {
+                                                    var data = $(this);
+
+                                                    director = data.text();
+
+                                                    results.director = director.trim();
+                                                })
+
+                                                $('.subtext').filter(function () {
+                                                    $('.itemprop').filter(() => {
+                                                        var data = $(this);
+    
+                                                        let genres = data.text();
+                                                        console.log("Looking into the stuff: " + genres.trim());
+                                                    })
                                                 })
 
                                                 $('span[itemprop="director"]').filter(function () {
@@ -235,6 +253,7 @@ client.on('message', msg => {
                                 } else console.log(error)
                             })
                         } else if (url[0].includes('letterboxd.com/film/') && isUnique || url[0].includes('boxd.it') && isUnique) {
+                            if (!url[0].includes('/genres')) url[0] += '/genres';
                             console.log(`[MOVIE REQUEST] (${date()} @${date(true)}): Making request for Letterboxd\n` +
                                 `        URL:  ${url[0]}\n` +
                                 `        AUTHOR: ${msg.author.username}\n` +
@@ -255,6 +274,7 @@ client.on('message', msg => {
                                     var $ = cheerio.load(html);
 
                                     var title, director, release, rating;
+                                    var genres = [];
                                     var results = { title: "", director: "", release: "", rating: "", url: url[0], user: msg.author.id };
 
                                     $('.headline-1').filter(function () {
@@ -273,6 +293,19 @@ client.on('message', msg => {
 
                                             results.director = director;
                                         })
+                                    })
+
+                                    $('#text-genre').filter(() => {
+                                        let data = $(this);
+
+                                        let genre = data.find('div', attrs={'class': 'text-sluglist'})//.find('p').findAll('a', attrs={'class': 'text-slug'})
+
+                                        console.log(genre);
+
+                                        // for (let i = 0; i < data.children().length; i++) {
+                                        //     genres[i] = data.children()[i].text;
+                                        //     console.log(genres[i]);
+                                        // }
                                     })
 
                                     $('.number').filter(function () {
@@ -338,7 +371,6 @@ client.on('message', msg => {
                             if (!msg.author.bot) msg.author.send("The following message has been deleted from **#" + msg.channel.name + "** as it is not a valid link (http:// or https://).\n```" + msg.content + "```")
                         })
                         .catch(console.error);
-                    ;
                 }
             } else {
                 msg.delete()
@@ -465,6 +497,12 @@ client.on('message', msg => {
     // Get embed
     else if (msg.content.toLowerCase() == '!testsend' && msg.author.id == tokens.ADMIN_ID) {
         sendEmbed()
+    }
+
+    else if (msg.content.toLowerCase() == '!cleardb' && msg.author.id == tokens.ADMIN_ID) {
+        console.log('Clearing Database!')
+        con.query('DELETE FROM suggested');
+        con.query('DELETE FROM used');
     }
 });
 
