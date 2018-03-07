@@ -61,18 +61,18 @@ client.on('message', msg => {
                     })
             } else {
                 msg.delete()
-                    .then(msg => msg.author.send("The following message has been deleted from **#" + msg.channel.name + "** as it does not follow the content guidelines.\n```" + msg.content + "```"))
+                    .then(msg => {if (!msg.author.bot) msg.author.send("The following message has been deleted from **#" + msg.channel.name + "** as it does not follow the content guidelines.\n```" + msg.content + "```")})
                     .catch(console.error);
             }
         } else {
             msg.delete()
-                .then(msg => msg.author.send("The following message has been deleted from **#" + msg.channel.name + "** as it does not follow the content guidelines.\n```" + msg.content + "```"))
+                .then(msg => {if (!msg.author.bot) msg.author.send("The following message has been deleted from **#" + msg.channel.name + "** as it does not follow the content guidelines.\n```" + msg.content + "```")})
                 .catch(console.error);
         }
     }
 
     // Movie recommendations management
-    else if (msg.author.id !== tokens.BOT_ID && msg.channel.id === tokens.RECOMMENDATIONS_ID) {
+    else if (msg.author.id !== tokens.BOT_ID && msg.channel.id === tokens.RECOMMENDATIONS_ID && !msg.author.bot) {
 
         var url = Array.from(getURL(msg.content));
 
@@ -105,7 +105,7 @@ client.on('message', msg => {
                     } else {
                         console.log('Link was invalid, deleting message and notifying user')
                         msg.delete()
-                            .then(message => message.author.send("The following message has been deleted from **#" + msg.channel.name + "** as it is not a valid link.\n```" + msg.content + "```"))
+                            .then(message => {if (!message.author.bot) message.author.send("The following message has been deleted from **#" + msg.channel.name + "** as it is not a valid link.\n```" + msg.content + "```")})
                             .catch(console.error())
                     }
                 }
@@ -122,7 +122,7 @@ client.on('message', msg => {
                         } else {
                             console.log('Link was invalid, deleting message and notifying user')
                             msg.delete()
-                                .then(message => message.author.send("The following message has been deleted from **#" + msg.channel.name + "** as it is not a valid link.\n```" + msg.content + "```"))
+                                .then(message =>{if (!message.author.bot) message.author.send("The following message has been deleted from **#" + msg.channel.name + "** as it is not a valid link.\n```" + msg.content + "```")})
                                 .catch(console.error())
                         }
                     })
@@ -240,7 +240,7 @@ client.on('message', msg => {
                                                     } else {
                                                         console.log('Entry exists, deleting message')
                                                         msg.delete()
-                                                            .then(msg => msg.author.send("The following message has been deleted from **#" + msg.channel.name + "** as it has already been recommended.\n```" + msg.content + "```"))
+                                                            .then(msg => {if (!msg.author.bot) msg.author.send("The following message has been deleted from **#" + msg.channel.name + "** as it has already been recommended.\n```" + msg.content + "```")})
                                                             .catch(console.error);
                                                     }
                                                 })
@@ -251,7 +251,7 @@ client.on('message', msg => {
                                     } else {
                                         console.log('DELETING MESSAGE')
                                         msg.delete()
-                                            .then(msg => msg.author.send("The following message has been deleted from **#" + msg.channel.name + "** as it does not fit the content guidelines.\n```" + msg.content + "```"))
+                                            .then(msg => {if (!msg.author.bot) msg.author.send("The following message has been deleted from **#" + msg.channel.name + "** as it does not fit the content guidelines.\n```" + msg.content + "```")})
                                             .catch(console.error);
                                     }
                                 } else console.log(error)
@@ -351,7 +351,7 @@ client.on('message', msg => {
                                         } else {
                                             console.log('Entry exists, deleting message')
                                             msg.delete()
-                                                .then(msg => msg.author.send("The following message has been deleted from **#" + msg.channel.name + "** as it has already been recommended.\n```" + msg.content + "```"))
+                                                .then(msg => {if (!msg.author.bot) msg.author.send("The following message has been deleted from **#" + msg.channel.name + "** as it has already been recommended.\n```" + msg.content + "```")})
                                                 .catch(console.error);
                                         }
                                     })
@@ -362,7 +362,7 @@ client.on('message', msg => {
                         } else {
                             console.log('DELETING MESSAGE')
                             msg.delete()
-                                .then(msg => msg.author.send("The following message has been deleted from **#" + msg.channel.name + "** as it does not fit the content guidelines.\n```" + msg.content + "```"))
+                                .then(msg => {if (!msg.author.bot) msg.author.send("The following message has been deleted from **#" + msg.channel.name + "** as it does not fit the content guidelines.\n```" + msg.content + "```")})
 
                                 .catch(console.error);
                         }
@@ -378,7 +378,7 @@ client.on('message', msg => {
                 }
             } else {
                 msg.delete()
-                    .then(msg => msg.author.send("The following message has been deleted from **#" + msg.channel.name + "** as it does not fit the content guidelines.\n```" + msg.content + "```"))
+                    .then(msg => {if (!msg.author.bot) msg.author.send("The following message has been deleted from **#" + msg.channel.name + "** as it does not fit the content guidelines.\n```" + msg.content + "```")})
                     .catch(console.error)
             }
         }
@@ -396,8 +396,8 @@ client.on('message', msg => {
         sendEmbed(msg.channel.id);
     }
 
-    else if ((msg.content.toLowerCase() == `${tokens.PREFIX}randmovie` && (msg.channel.id == tokens.CHANNEL_ID || msg.channel.id == tokens.BAV_ID)) ||
-        (msg.content.toLowerCase().includes('netflix and chill') && (msg.channel.id == tokens.CHANNEL_ID || msg.channel.id == tokens.BAV_ID))) {
+    else if ((msg.content.toLowerCase() == `${tokens.PREFIX}randmovie` && (msg.channel.id == tokens.CHANNEL_ID || msg.channel.id == tokens.BAV_ID) && !msg.author.bot) ||
+        (msg.content.toLowerCase().includes('netflix and chill') && (msg.channel.id == tokens.CHANNEL_ID || msg.channel.id == tokens.BAV_ID) && !msg.author.bot)) {
         console.log(`[RANDMOVIE REQUEST] (${date()} @${date(true)}): Sending random movie, details:\n` +
             `        AUTHOR: ${msg.author.username}\n` +
             `        -  AUTHOR_ID: ${msg.author.id}`);
