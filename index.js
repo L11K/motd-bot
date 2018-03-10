@@ -71,6 +71,26 @@ client.on('message', msg => {
         }
     }
 
+    // Set embed
+    else if (msg.content.toLowerCase() == '!testset' && msg.author.id == tokens.ADMIN_ID) {
+        setEmbed()
+    }
+
+    // Get embed
+    else if (msg.content.toLowerCase() == '!testsend' && msg.author.id == tokens.ADMIN_ID) {
+        sendEmbed()
+    }
+
+    else if (msg.content.toLowerCase() == '!cleardb' && msg.author.id == tokens.ADMIN_ID) {
+        console.log('Clearing Database!')
+        con.query('DELETE FROM suggested');
+        con.query('DELETE FROM used');
+    }
+    else if (msg.content.toLowerCase() == '!clearchannel' && msg.author.id == tokens.ADMIN_ID) {
+        console.log('Clearing Channel!')
+        deleteStuff(msg);
+    }
+
     // Movie recommendations management
     else if (msg.author.id !== tokens.BOT_ID && msg.channel.id === tokens.RECOMMENDATIONS_ID && !msg.author.bot) {
 
@@ -162,69 +182,63 @@ client.on('message', msg => {
 
                                                 var $ = cheerio.load(html);
 
-                                                var title, director, release, genres, runtime, rating;
-                                                var results = { title: "", director: "", release: "", rating: "", url: url[0], user: msg.author.id };
+												var title, director, release, rating;
+                                                var results = { title: "", director: "", runtime: "", genreOne: "", genreTwo: "", release: "", rating: "", url: url[0], user: msg.author.id };
 
-                                                $('.title_wrapper').filter(function () {
-                                                    var data = $(this);
+												// Get movie title
+                                                title = $('h1[itemprop="name"]').text().trim();
+												results.title = title.substring(0, (title.length - 7));
+												
+												// Get movie director
+												director = $('span[itemprop="director"]').text();
+												results.director = director.trim();
 
-                                                    title = data.children().first().text().toString();
-
-                                                    title = title.trim();
-
-                                                    title = title.substring(0, (title.length - 7));
-
-                                                    results.title = title;
-                                                })
-
-                                                $('span[itemprop="director"]').filter(function () {
-                                                    var data = $(this);
-
-                                                    director = data.text();
-
-                                                    results.director = director.trim();
-                                                })
-
-                                                $('.subtext').filter(function () {
-                                                    $('.itemprop').filter(() => {
-                                                        var data = $(this);
-
-                                                        let genres = data.text();
-                                                        console.log("Looking into the stuff: " + genres.trim());
-                                                    })
-                                                })
-
-                                                $('span[itemprop="director"]').filter(function () {
-                                                    var data = $(this);
-
-                                                    director = data.text();
-
-                                                    results.director = director.trim();
-                                                })
-
-                                                $('#titleYear').filter(function () {
-                                                    var data = $(this);
-
-                                                    release = data.children().last().text();
-
-                                                    results.release = release.trim();
-                                                })
-
-                                                $('.ratingValue').filter(function () {
-                                                    var data = $(this);
-
-                                                    rating = data.text();
-
-                                                    results.rating = rating.trim().substring(0, 3) + '0';
-                                                })
-
-                                                console.log(results);
-
-                                                if (results.rating == undefined || results.rating == '') {
-                                                    results.rating = 0.01;
-                                                    console.log(`There was no rating for this item, entering identifiable value for later`);
+												// Get movie runtime
+                                                let runtime = $('time[itemprop="duration"]');
+                                                runtime.attr('datetime', (i, d) => {
+                                                    if (!d) {
+                                                        console.log('There are not things')
+                                                        results.runtime = null;
+                                                    } else {
+                                                        console.log('There are things')
+                                                        results.runtime = d.toString().substring(2, d.toString().indexOf('M'))
+                                                    }
+												})
+												
+												// Get movie genre(s)
+                                                genre = $('span[itemprop="genre"]').text();
+                                                if (genre == '') {
+                                                    console.log(`No genre information found for ${item.title}! Setting null values.`)
+                                                    results.genreOne = null;
+                                                    results.genreTwo = null;
+                                                } else {
+                                                    genres = genre.split(/(?=[A-Z])/);
+                                                    if (genres.length > 1) {
+                                                        console.log(`There are two genres`)
+                                                        results.genreOne = genres[0];
+                                                        results.genreTwo = genres[1];
+                                                    } else {
+                                                        console.log(`There is only one genre`)
+                                                        results.genreOne = genres[0];
+                                                        results.genreTwo = null;
+                                                    }
                                                 }
 
+												// Get release year for movie
+                                                release = $('#titleYear a').text();
+												results.release = release.trim();
+
+												// Get rating for film
+												rating = $('.ratingValue').text();
+												results.rating = rating.trim().substring(0, 3) + '0';
+
+												// Do null check
+                                                if (results.runtime == '') results.runtime = null;
+
+												// Log results
+                                                console.log(results);
+
+												// Convert to unicode
                                                 results.title = toUnicode(results.title);
                                                 results.director = toUnicode(results.director);
 
@@ -232,7 +246,7 @@ client.on('message', msg => {
                                                     if (e) console.log(e);
                                                     if (rows.length == 0) {
                                                         console.log('Entry does not exist, inserting data into table')
-                                                        con.query(`INSERT INTO suggested VALUES ("${results.title}", '${results.director}', ${results.release}, ${results.rating}, '${results.url}', '${results.user}')`, function (error, result, field, ) {
+                                                        con.query(`INSERT INTO suggested VALUES ("${results.title}", "${results.director}", ${results.release}, ${results.runtime}, ${results.genreOne ? `"${results.genreOne}"` : null}, ${results.genreTwo ? `"${results.genreTwo}"` : null}, ${results.rating}, "${results.url}", "${results.user}")`, function (error, result, field, ) {
                                                             if (error) throw error;
                                                             console.log(`Success: affected rows: ${result.affectedRows}`);
                                                             msg.reply(`got it! **${results.title}** was added to the database!`)
@@ -251,13 +265,12 @@ client.on('message', msg => {
                                     } else {
                                         console.log('DELETING MESSAGE')
                                         msg.delete()
-                                            .then(msg => { if (!msg.author.bot) msg.author.send("The following message has been deleted from **#" + msg.channel.name + "** as it does not fit the content guidelines.\n```" + msg.content + "```") })
+                                            .then(msg => { if (!msg.author.bot) msg.author.send("The following message has been deleted from **#" + msg.channel.name + "** as it is not a movie.\n```" + msg.content + "```") })
                                             .catch(console.error);
                                     }
                                 } else console.log(error)
                             })
                         } else if (url[0].includes('letterboxd.com/film/') && isUnique || url[0].includes('boxd.it') && isUnique) {
-                            if (!url[0].includes('/genres')) url[0] += '/genres';
                             console.log(`[MOVIE REQUEST] (${date()} @${date(true)}): Making request for Letterboxd\n` +
                                 `        URL:  ${url[0]}\n` +
                                 `        AUTHOR: ${msg.author.username}\n` +
@@ -275,65 +288,64 @@ client.on('message', msg => {
 
                             request(url[0], function (error, response, html) {
                                 if (!error) {
-                                    var $ = cheerio.load(html);
+									var $ = cheerio.load(html);
 
-                                    var title, director, release, rating;
-                                    var genres = [];
-                                    var results = { title: "", director: "", release: "", rating: "", url: url[0], user: msg.author.id };
+									var title, director, release, runtime, genre, rating;
+									let genres = [];
+									var results = { title: "", director: "", runtime: "", genreOne: "", genreTwo: "", release: "", rating: "", url: url[0], user: msg.author.id };
 
-                                    $('.headline-1').filter(function () {
-                                        var data = $(this);
+									// Get movie title
+									title = $('.headline-1').text();
+									results.title = title.trim();
 
-                                        title = data.text();
+									// Get movie director
+									director = $('#featured-film-header span.prettify').text();
+									results.director = director;
 
-                                        results.title = title.trim();
-                                    })
 
-                                    $('#featured-film-header').filter(function () {
-                                        $('span.prettify').filter(function () {
-                                            var data = $(this);
+									// Get movie genre(s)
+                                    genre = $('#tab-genres > .text-sluglist').text().trim();
+                                    console.log(genre)
+                                    if (genre === '') {
+                                        console.log(`There is no genre for ${item.title}! Setting null values.`)
+                                        results.genreOne = null;
+                                        results.genreTwo = null;
+                                    } else {
+                                        genres = genre.split(' ');
+                                        if (genres.length > 1) {
+                                            console.log('There is two genres')
+                                            results.genreOne = genres[0].charAt(0).toUpperCase() + genres[0].slice(1);
+                                            results.genreTwo = genres[1].charAt(0).toUpperCase() + genres[1].slice(1);
+                                        } else {
+                                            console.log('There is only one genre')
+                                            results.genreOne = genres[0].charAt(0).toUpperCase() + genres[0].slice(1);
+                                            results.genreTwo = null;
+                                        }
+                                    }
 
-                                            director = data.text();
+									// Get movie runtime
+                                    runtime = $('.text-footer').text().trim();
+                                    results.runtime = parseInt(runtime);
 
-                                            results.director = director;
-                                        })
-                                    })
+									// Get movie release year
+									release = $('.number').text();
+									results.release = release.trim();
 
-                                    $('#text-genre').filter(() => {
-                                        let data = $(this);
+									// Get rating for film
+									//TODO: Figure out why span.average-rating does not load with request
+									rating = $('span.average-rating meta[itemprop="ratingValue"]').content;
+									console.log("Rating: " + rating)
 
-                                        let genre = data.find('div', attrs = { 'class': 'text-sluglist' })//.find('p').findAll('a', attrs={'class': 'text-slug'})
-
-                                        console.log(genre);
-
-                                        // for (let i = 0; i < data.children().length; i++) {
-                                        //     genres[i] = data.children()[i].text;
-                                        //     console.log(genres[i]);
-                                        // }
-                                    })
-
-                                    $('.number').filter(function () {
-                                        var data = $(this);
-
-                                        release = data.text();
-
-                                        results.release = release.trim();
-                                    })
-
-                                    $('.average-rating').filter(function () {
-                                        var data = $(this);
-
-                                        rating = data.children()[1].attribs.content;
-
-                                        results.rating = rating.trim();
-                                    })
-
+									// Output results object
                                     console.log(results)
 
-                                    if (results.rating == undefined || results.rating == '') {
-                                        results.rating = 0.01;
+									// Do null value check
+                                    if (results.rating === '') {
+                                        results.rating = null;
                                         console.log(`There was no rating for this item, entering identifiable value for later`);
-                                    }
+									}
+									
+									// Put title and director in unicode for db
                                     results.title = toUnicode(results.title)
                                     results.director = toUnicode(results.director);
 
@@ -343,7 +355,7 @@ client.on('message', msg => {
                                         if (e) console.log(e);
                                         if (rows.length == 0) {
                                             console.log('Entry does not exist, inserting data into table ')
-                                            con.query(`INSERT INTO suggested VALUES ("${results.title}", "${results.director}", ${results.release}, ${results.rating}, "${results.url}", "${results.user}")`, function (error, result, field) {
+                                            con.query(`INSERT INTO suggested VALUES ("${results.title}", "${results.director}", ${results.release}, ${results.runtime}, ${results.genreOne ? `"${results.genreOne}"` : null}, ${results.genreTwo ? `"${results.genreTwo}"` : null}, ${results.rating}, "${results.url}", "${results.user}")`, function (error, result, field) {
                                                 if (error) throw error;
                                                 console.log(`Success: affected rows: ${result.affectedRows}`);
                                                 msg.reply(`got it! **${results.title}** was added to the database!`)
@@ -351,7 +363,7 @@ client.on('message', msg => {
                                         } else {
                                             console.log('Entry exists, deleting message')
                                             msg.delete()
-                                                .then(msg => { if (!msg.author.bot) msg.author.send("The following message has been deleted from **#" + msg.channel.name + "** as it has already been recommended.\n```" + msg.content + "```") })
+                                                .then(message => { if (!message.author.bot) msg.author.send("The following message has been deleted from **#" + message.channel.name + "** as it has already been recommended.\n```" + message.content + "```") })
                                                 .catch(console.error);
                                         }
                                     })
@@ -437,11 +449,23 @@ client.on('message', msg => {
             }
 
             function saveEmbed(imageLink) {
-                let ratingString = '';
-                if (r[0].rating == 0.01) {
+                let ratingString = runtimeString = genreString = directorString = '';
+                if (!r[0].rating) {
                     ratingString = 'No rating for this title'
                 } else {
                     ratingString = `${r[0].rating}/10`
+                }
+                if (!r[0].runtime) {
+                    runtimeString = 'No runtime for this title'
+                } else {
+                    runtimeString = `${r[0].runtime} mins`
+                }
+                if (!r[0].genreOne) {
+                    genreString = 'No genre for this title'
+                } else if (!r[0].genreTwo) {
+                    genreString = `${r[0].genreOne}`
+                } else {
+                    genreString = `${r[0].genreOne}, ${r[0].genreTwo}`
                 }
                 MOTD = {
                     embed: {
@@ -458,6 +482,8 @@ client.on('message', msg => {
                                 name: `About the film:`,
                                 value: `**Director:**   ${r[0].director}\n` +
                                     `**Release Year:**   ${r[0].releaseYear}\n` +
+                                    `**Genre${r[0].genreTwo === null ? "" : "s"}:**   ${genreString}\n` +
+                                    `**Runtime:**   ${runtimeString}\n` +
                                     `**Rating:**   ${ratingString}\n` +
                                     `[See More](${r[0].url})\n\n` +
                                     `***Suggested by*** <@${r[0].userTag}>`
@@ -492,22 +518,6 @@ client.on('message', msg => {
             }
         })
     }
-
-    // Set embed
-    else if (msg.content.toLowerCase() == '!testset' && msg.author.id == tokens.ADMIN_ID) {
-        setEmbed()
-    }
-
-    // Get embed
-    else if (msg.content.toLowerCase() == '!testsend' && msg.author.id == tokens.ADMIN_ID) {
-        sendEmbed()
-    }
-
-    else if (msg.content.toLowerCase() == '!cleardb' && msg.author.id == tokens.ADMIN_ID) {
-        console.log('Clearing Database!')
-        con.query('DELETE FROM suggested');
-        con.query('DELETE FROM used');
-    }
 });
 
 schedule.scheduleJob('0 0 * * *', () => {
@@ -519,6 +529,35 @@ schedule.scheduleJob('0 0-20/4 * * *', () => {
     console.log(`Sending embed for ${Date.now()}`)
     sendEmbed();
 })
+
+let deleteStuff = (msg) => {
+    let count = 0;
+    msg.channel.fetchMessages({ limit: 100 })
+        .then(messages => {
+            let messagesArr = messages.array();
+            let messageCount = messagesArr.length;
+
+            for (let i = 0; i < messageCount; i++) {
+                messagesArr[i].delete()
+                    .then(function () {
+                        count = count + 1;
+                        if (count >= 100) {
+                            deleteStuff();
+                        }
+                    })
+                    .catch(function () {
+                        count = count + 1;
+                        if (count >= 100) {
+                            deleteStuff();
+                        }
+                    })
+            }
+        })
+        .catch(function (err) {
+            console.log('error thrown');
+            console.log(err);
+        });
+};
 
 function setEmbed() {
     console.log(`Attempting to set a new movie of the day!`)
@@ -565,11 +604,23 @@ function setEmbed() {
             }
 
             function saveEmbed(imageLink) {
-                let ratingString = '';
-                if (r[0].rating == 0.01) {
+                let ratingString = runtimeString = genreString = '';
+                if (!r[0].rating) {
                     ratingString = 'No rating for this title'
                 } else {
                     ratingString = `${r[0].rating}/10`
+                }
+                if (!r[0].runtime) {
+                    runtimeString = 'No runtime for this title'
+                } else {
+                    runtimeString = `${r[0].runtime} mins`
+                }
+                if (!r[0].genreOne) {
+                    genreString = 'No genre for this title'
+                } else if (!r[0].genreTwo) {
+                    genreString = `${r[0].genreOne}`
+                } else {
+                    genreString = `${r[0].genreOne}, ${r[0].genreTwo}`
                 }
                 MOTD = {
                     embed: {
@@ -586,6 +637,8 @@ function setEmbed() {
                                 name: `About the film:`,
                                 value: `**Director:**   ${r[0].director}\n` +
                                     `**Release Year:**   ${r[0].releaseYear}\n` +
+                                    `**Genre${r[0].genreTwo === null ? "" : "s"}:**   ${genreString}\n` +
+                                    `**Runtime:**   ${runtimeString}\n` +
                                     `**Rating:**   ${ratingString}\n` +
                                     `[See More](${r[0].url})\n\n` +
                                     `***Suggested by*** <@${r[0].userTag}>`
@@ -618,7 +671,7 @@ function setEmbed() {
 
                 //Let user know their movie was picked
                 let movieBoi = recChannel.guild.members.get(r[0].userTag);
-                movieBoi.send(`Congratulations! Your movie suggestion **${r[0].title}** was picked as movie of the day!`, MOTD)
+                movieBoi.send(`Congratulations! **${r[0].title}** was picked as movie of the day!`, MOTD)
                     .then(() => {
                         console.log(`Attempting to write embed to file`)
                         fs.writeFile('movie.json', JSON.stringify(MOTD), (err) => {
@@ -626,7 +679,7 @@ function setEmbed() {
                             console.log(`Wrote movie to file successfully!`);
                             console.log('Attempting to insert into used database')
 
-                            con.query(`INSERT INTO used VALUES ("${r[0].title}", "${r[0].director}", ${r[0].releaseYear}, ${r[0].rating}, "${r[0].url}", "${r[0].userTag}")`, (error, results, fields) => {
+                            con.query(`INSERT INTO used VALUES ("${r[0].title}", "${r[0].director}", ${r[0].releaseYear}, ${r[0].runtime}, ${r[0].genreOne ? `"${r[0].genreOne}"` : null}, ${r[0].genreTwo ? `"${r[0].genreTwo}"` : null}, ${r[0].rating}, "${r[0].url}", "${r[0].userTag}")`, (error, results, fields) => {
                                 if (error) throw error;
                                 console.log(`Successfully entered into used DB, affected rows:  ${results.affectedRows}`);
                             })

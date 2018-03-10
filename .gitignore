@@ -37,6 +37,12 @@ jspm_packages
 # Optional REPL history
 .node_repl_history
 
-# JSON files
+# Other files
+.DS_Store
 tokens.json
 movie.json
+populate.js
+moviesCon.sql
+movies.sql
+moviefinal.sql
+movieCon.sql
