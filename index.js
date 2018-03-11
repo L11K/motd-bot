@@ -179,10 +179,10 @@ client.on('message', msg => {
 										console.log(`Url is a movie, moving on!`);
 										request(url[0], function (error, response, html) {
 											if (!error) {
-
 												var $ = cheerio.load(html);
 
-												var title, director, release, rating;
+												var title, director, genre, release, rating;
+												let genres = [];
 												var results = { title: "", director: "", runtime: "", genreOne: "", genreTwo: "", release: "", rating: "", url: url[0], user: msg.author.id };
 
 												// Get movie title
@@ -212,7 +212,19 @@ client.on('message', msg => {
 													results.genreOne = null;
 													results.genreTwo = null;
 												} else {
-													genres = genre.split(/(?=[A-Z])/);
+													// Check for genres such as sci-fi or film-noir
+													if (!genre.includes('-')) genres = genre.split(/(?=[A-Z])/);
+													else {
+														console.log('Genre includes hyphen')
+														let lastCapital = 0;
+														for (let i = 0; i <= genre.length; i++) {
+															if ((i != 0 && genre.charAt(i).match(/(?=[A-Z])/) && genre.charAt(i - 1) !== '-') || i == genre.length) {
+																console.log(genre.substring(lastCapital, i))
+																genres.push(genre.substring(lastCapital, i))
+																lastCapital = i;
+															}
+														}
+													}
 													if (genres.length > 1) {
 														console.log(`There are two genres`)
 														results.genreOne = genres[0];
