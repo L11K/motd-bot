@@ -182,6 +182,7 @@ client.on('message', msg => {
 												var $ = cheerio.load(html);
 
 												var title, director, genre, release, rating;
+												let futureRelease = false;
 												let genres = [];
 												var results = { title: "", director: "", runtime: "", genreOne: "", genreTwo: "", release: "", rating: "", url: url[0], user: msg.author.id };
 
@@ -197,10 +198,8 @@ client.on('message', msg => {
 												let runtime = $('time[itemprop="duration"]');
 												runtime.attr('datetime', (i, d) => {
 													if (!d) {
-														console.log('There are not things')
 														results.runtime = null;
 													} else {
-														console.log('There are things')
 														results.runtime = d.toString().substring(2, d.toString().indexOf('M'))
 													}
 												})
@@ -252,8 +251,21 @@ client.on('message', msg => {
 												// Log results
 												console.log(results);
 
+												let currentTime = new Date();
+
+												if (parseInt(results.release) > currentTime.getFullYear()) {
+													futureRelease = true;
+												} else if (results.rating === null && results.release === currentTime.getFullYear().toString()) {
+													console.log('Trying to compare dates')
+													let releaseDate = new Date($('meta[itemprop="datePublished"]').attr('content'))
+													if (releaseDate > currentTime) {
+														console.log("Hasn't been released yet")
+														futureRelease = true;
+													}
+												}
+
 												let nullCount = 0;
-												
+
 												for (let i in results) {
 													if (results[i] === null) {
 														console.log(`Null found!`)
@@ -262,22 +274,31 @@ client.on('message', msg => {
 												}
 
 												if (nullCount < 3) {
-													con.query(`SELECT title FROM suggested WHERE title="${results.title}" AND releaseYear=${results.release}`, function (e, rows, fields) {
-														if (e) console.log(e);
-														if (rows.length == 0) {
-															console.log('Entry does not exist, inserting data into table')
-															con.query(`INSERT INTO suggested VALUES ("${results.title}", "${results.director}", ${results.release}, ${results.runtime}, ${results.genreOne ? `"${results.genreOne}"` : null}, ${results.genreTwo ? `"${results.genreTwo}"` : null}, ${results.rating}, "${results.url}", "${results.user}")`, function (error, result, field, ) {
-																if (error) throw error;
-																console.log(`Success: affected rows: ${result.affectedRows}`);
-																msg.reply(`got it! **${results.title}** was added to the database!`)
-															});
-														} else {
-															console.log('Entry exists, deleting message')
-															msg.delete()
-																.then(msg => { if (!msg.author.bot) msg.author.send("The following message has been deleted from **#" + msg.channel.name + "** as it has already been recommended.\n```" + msg.content + "```") })
-																.catch(console.error);
-														}
-													})
+													if (!futureRelease) {
+
+
+														con.query(`SELECT title FROM suggested WHERE title="${results.title}" AND releaseYear=${results.release}`, function (e, rows, fields) {
+															if (e) console.log(e);
+															if (rows.length == 0) {
+																console.log('Entry does not exist, inserting data into table')
+																con.query(`INSERT INTO suggested VALUES ("${results.title}", "${results.director}", ${results.release}, ${results.runtime}, ${results.genreOne ? `"${results.genreOne}"` : null}, ${results.genreTwo ? `"${results.genreTwo}"` : null}, ${results.rating}, "${results.url}", "${results.user}")`, function (error, result, field, ) {
+																	if (error) throw error;
+																	console.log(`Success: affected rows: ${result.affectedRows}`);
+																	msg.reply(`got it! **${results.title}** was added to the database!`)
+																});
+															} else {
+																console.log('Entry exists, deleting message')
+																msg.delete()
+																	.then(msg => { if (!msg.author.bot) msg.author.send("The following message has been deleted from **#" + msg.channel.name + "** as it has already been recommended.\n```" + msg.content + "```") })
+																	.catch(console.error);
+															}
+														})
+													} else {
+														console.log(`Movie is a future release, denying`)
+														msg.delete()
+															.then(msg => { if (!msg.author.bot) msg.author.send("The following message has been deleted from **#" + msg.channel.name + "** as it has not been released yet.\n```" + msg.content + "```") })
+															.catch(console.error);
+													}
 												} else {
 													console.log(`Too many null values, denying entry`)
 													msg.delete()
@@ -317,6 +338,7 @@ client.on('message', msg => {
 									var $ = cheerio.load(html);
 
 									var title, director, release, runtime, genre, rating;
+									let futureRelease = false;
 									let genres = [];
 									var results = { title: "", director: "", runtime: "", genreOne: "", genreTwo: "", release: "", rating: "", url: url[0], user: msg.author.id };
 
@@ -362,19 +384,36 @@ client.on('message', msg => {
 									let ratingsUrl = url[0].substring(0, url[0].indexOf('film')) + 'csi/' + url[0].substring(url[0].indexOf('film'), url[0].length) + '/rating-histogram/'
 
 									request(ratingsUrl, (e, r, h) => {
+										let currentTime = new Date()
 										let $$ = cheerio.load(h);
 										rating = $$('span.average-rating meta[itemprop="ratingValue"]').attr('content')
 										results.rating = parseFloat(rating);
-										dataCheck()
-									})
+										if (parseInt(results.release) > currentTime.getFullYear()) {
+											console.log('Comes out in a later year')
+											futureRelease = true
+										} else if (isNaN(results.rating) && results.release === currentTime.getFullYear().toString()) {
+											console.log('Making request on imdb site');
+											request($('a[data-track-action="IMDb"]').attr('href'), (er, re, ht) => {
+												if (!er) {
+													let $$$ = cheerio.load(ht);
+													let releaseDate = new Date($$$('meta[itemprop="datePublished"]').attr('content'))
+													if (releaseDate > currentTime) {
+														console.log("Hasn't been released yet")
+														futureRelease = true;
+													}
+												}
+											})
+										}
 
+										setTimeout(() => {
+											dataCheck()
+										}, 2000);
+									})
 
 									function dataCheck() {
 										// Do null value check
-										if (isNaN(results.rating)) {
-											results.rating = null;
-											console.log(`There is no rating for ${results.title}, entering null value`);
-										}
+										if (isNaN(results.rating)) results.rating = null
+										if (isNaN(results.runtime)) results.runtime = null;
 
 										// Output results object
 										console.log(results)
@@ -389,24 +428,31 @@ client.on('message', msg => {
 										}
 
 										if (nullCount < 3) {
-											console.log(`Performing database precheck for ${results.title}`);
+											if (!futureRelease) {
+												console.log(`Performing database precheck for ${results.title}`);
 
-											con.query(`SELECT title FROM suggested WHERE title="${results.title}" AND releaseYear=${results.release}`, function (e, rows, fields) {
-												if (e) console.log(e);
-												if (rows.length == 0) {
-													console.log('Entry does not exist, inserting data into table ')
-													con.query(`INSERT INTO suggested VALUES ("${results.title}", "${results.director}", ${results.release}, ${results.runtime}, ${results.genreOne ? `"${results.genreOne}"` : null}, ${results.genreTwo ? `"${results.genreTwo}"` : null}, ${results.rating}, "${results.url}", "${results.user}")`, function (error, result, field) {
-														if (error) throw error;
-														console.log(`Success: affected rows: ${result.affectedRows}`);
-														msg.reply(`got it! **${results.title}** was added to the database!`)
-													});
-												} else {
-													console.log('Entry exists, deleting message')
-													msg.delete()
-														.then(message => { if (!message.author.bot) msg.author.send("The following message has been deleted from **#" + message.channel.name + "** as it has already been recommended.\n```" + message.content + "```") })
-														.catch(console.error);
-												}
-											})
+												con.query(`SELECT title FROM suggested WHERE title="${results.title}" AND releaseYear=${results.release}`, function (e, rows, fields) {
+													if (e) console.log(e);
+													if (rows.length == 0) {
+														console.log('Entry does not exist, inserting data into table ')
+														con.query(`INSERT INTO suggested VALUES ("${results.title}", "${results.director}", ${results.release}, ${results.runtime}, ${results.genreOne ? `"${results.genreOne}"` : null}, ${results.genreTwo ? `"${results.genreTwo}"` : null}, ${results.rating}, "${results.url}", "${results.user}")`, function (error, result, field) {
+															if (error) throw error;
+															console.log(`Success: affected rows: ${result.affectedRows}`);
+															msg.reply(`got it! **${results.title}** was added to the database!`)
+														});
+													} else {
+														console.log('Entry exists, deleting message')
+														msg.delete()
+															.then(message => { if (!message.author.bot) msg.author.send("The following message has been deleted from **#" + message.channel.name + "** as it has already been recommended.\n```" + message.content + "```") })
+															.catch(console.error);
+													}
+												})
+											} else {
+												console.log(`Movie is a future release, denying`)
+												msg.delete()
+													.then(msg => { if (!msg.author.bot) msg.author.send("The following message has been deleted from **#" + msg.channel.name + "** as it has not been released yet.\n```" + msg.content + "```") })
+													.catch(console.error);
+											}
 										} else {
 											console.log(`Too many null values, denying entry`)
 											msg.delete()
