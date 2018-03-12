@@ -244,32 +244,46 @@ client.on('message', msg => {
 												rating = $('.ratingValue').text();
 												results.rating = rating.trim().substring(0, 3) + '0';
 
+												if (results.rating === '0') results.rating = null;
+
 												// Do null check
 												if (results.runtime == '') results.runtime = null;
 
 												// Log results
 												console.log(results);
 
-												// Convert to unicode
-												results.title = toUnicode(results.title);
-												results.director = toUnicode(results.director);
-
-												con.query(`SELECT title FROM suggested WHERE title="${results.title}" AND releaseYear=${results.release}`, function (e, rows, fields) {
-													if (e) console.log(e);
-													if (rows.length == 0) {
-														console.log('Entry does not exist, inserting data into table')
-														con.query(`INSERT INTO suggested VALUES ("${results.title}", "${results.director}", ${results.release}, ${results.runtime}, ${results.genreOne ? `"${results.genreOne}"` : null}, ${results.genreTwo ? `"${results.genreTwo}"` : null}, ${results.rating}, "${results.url}", "${results.user}")`, function (error, result, field, ) {
-															if (error) throw error;
-															console.log(`Success: affected rows: ${result.affectedRows}`);
-															msg.reply(`got it! **${results.title}** was added to the database!`)
-														});
-													} else {
-														console.log('Entry exists, deleting message')
-														msg.delete()
-															.then(msg => { if (!msg.author.bot) msg.author.send("The following message has been deleted from **#" + msg.channel.name + "** as it has already been recommended.\n```" + msg.content + "```") })
-															.catch(console.error);
+												let nullCount = 0;
+												
+												for (let i in results) {
+													if (results[i] === null) {
+														console.log(`Null found!`)
+														nullCount++;
 													}
-												})
+												}
+
+												if (nullCount < 3) {
+													con.query(`SELECT title FROM suggested WHERE title="${results.title}" AND releaseYear=${results.release}`, function (e, rows, fields) {
+														if (e) console.log(e);
+														if (rows.length == 0) {
+															console.log('Entry does not exist, inserting data into table')
+															con.query(`INSERT INTO suggested VALUES ("${results.title}", "${results.director}", ${results.release}, ${results.runtime}, ${results.genreOne ? `"${results.genreOne}"` : null}, ${results.genreTwo ? `"${results.genreTwo}"` : null}, ${results.rating}, "${results.url}", "${results.user}")`, function (error, result, field, ) {
+																if (error) throw error;
+																console.log(`Success: affected rows: ${result.affectedRows}`);
+																msg.reply(`got it! **${results.title}** was added to the database!`)
+															});
+														} else {
+															console.log('Entry exists, deleting message')
+															msg.delete()
+																.then(msg => { if (!msg.author.bot) msg.author.send("The following message has been deleted from **#" + msg.channel.name + "** as it has already been recommended.\n```" + msg.content + "```") })
+																.catch(console.error);
+														}
+													})
+												} else {
+													console.log(`Too many null values, denying entry`)
+													msg.delete()
+														.then(msg => { if (!msg.author.bot) msg.author.send("The following message has been deleted from **#" + msg.channel.name + "** as it does not have enough information for the database.\n```" + msg.content + "```") })
+														.catch(console.error);
+												}
 											} else {
 												console.log(error)
 											}
@@ -365,24 +379,40 @@ client.on('message', msg => {
 										// Output results object
 										console.log(results)
 
-										console.log(`Performing database precheck for ${results.title}`);
+										let nullCount = 0;
 
-										con.query(`SELECT title FROM suggested WHERE title="${results.title}" AND releaseYear=${results.release}`, function (e, rows, fields) {
-											if (e) console.log(e);
-											if (rows.length == 0) {
-												console.log('Entry does not exist, inserting data into table ')
-												con.query(`INSERT INTO suggested VALUES ("${results.title}", "${results.director}", ${results.release}, ${results.runtime}, ${results.genreOne ? `"${results.genreOne}"` : null}, ${results.genreTwo ? `"${results.genreTwo}"` : null}, ${results.rating}, "${results.url}", "${results.user}")`, function (error, result, field) {
-													if (error) throw error;
-													console.log(`Success: affected rows: ${result.affectedRows}`);
-													msg.reply(`got it! **${results.title}** was added to the database!`)
-												});
-											} else {
-												console.log('Entry exists, deleting message')
-												msg.delete()
-													.then(message => { if (!message.author.bot) msg.author.send("The following message has been deleted from **#" + message.channel.name + "** as it has already been recommended.\n```" + message.content + "```") })
-													.catch(console.error);
+										for (let i in results) {
+											if (results[i] === null) {
+												console.log(`Null found!`)
+												nullCount++;
 											}
-										})
+										}
+
+										if (nullCount < 3) {
+											console.log(`Performing database precheck for ${results.title}`);
+
+											con.query(`SELECT title FROM suggested WHERE title="${results.title}" AND releaseYear=${results.release}`, function (e, rows, fields) {
+												if (e) console.log(e);
+												if (rows.length == 0) {
+													console.log('Entry does not exist, inserting data into table ')
+													con.query(`INSERT INTO suggested VALUES ("${results.title}", "${results.director}", ${results.release}, ${results.runtime}, ${results.genreOne ? `"${results.genreOne}"` : null}, ${results.genreTwo ? `"${results.genreTwo}"` : null}, ${results.rating}, "${results.url}", "${results.user}")`, function (error, result, field) {
+														if (error) throw error;
+														console.log(`Success: affected rows: ${result.affectedRows}`);
+														msg.reply(`got it! **${results.title}** was added to the database!`)
+													});
+												} else {
+													console.log('Entry exists, deleting message')
+													msg.delete()
+														.then(message => { if (!message.author.bot) msg.author.send("The following message has been deleted from **#" + message.channel.name + "** as it has already been recommended.\n```" + message.content + "```") })
+														.catch(console.error);
+												}
+											})
+										} else {
+											console.log(`Too many null values, denying entry`)
+											msg.delete()
+												.then(msg => { if (!msg.author.bot) msg.author.send("The following message has been deleted from **#" + msg.channel.name + "** as it does not have enough information for the database.\n```" + msg.content + "```") })
+												.catch(console.error);
+										}
 									}
 								} else {
 									console.log(error)
@@ -392,7 +422,6 @@ client.on('message', msg => {
 							console.log('DELETING MESSAGE')
 							msg.delete()
 								.then(msg => { if (!msg.author.bot) msg.author.send("The following message has been deleted from **#" + msg.channel.name + "** as it does not fit the content guidelines.\n```" + msg.content + "```") })
-
 								.catch(console.error);
 						}
 					}
