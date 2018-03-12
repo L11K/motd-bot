@@ -191,7 +191,7 @@ client.on('message', msg => {
 												results.title = title.substring(0, (title.length - 7));
 
 												// Get movie director
-												director = $('span[itemprop="director"]').text();
+												director = $('span[itemprop="director"]').first().text();
 												results.director = director.trim();
 
 												// Get movie runtime
@@ -347,7 +347,7 @@ client.on('message', msg => {
 									results.title = title.trim();
 
 									// Get movie director
-									director = $('#featured-film-header span.prettify').text();
+									director = $('#featured-film-header span.prettify').first().text();
 									results.director = director;
 
 
