@@ -543,22 +543,23 @@ client.on('message', msg => {
 			function saveEmbed(imageLink) {
 				let ratingString = runtimeString = genreString = directorString = '';
 				if (!r[0].rating) {
-					ratingString = 'No rating for this title'
+					ratingString = 'No rating'
 				} else {
-					ratingString = `${r[0].rating}/10`
+					ratingString = `${r[0].rating.toFixed(1)}/10`
 				}
 				if (!r[0].runtime) {
-					runtimeString = 'No runtime for this title'
+					runtimeString = 'No runtime'
 				} else {
 					runtimeString = `${r[0].runtime} mins`
 				}
 				if (!r[0].genreOne) {
-					genreString = 'No genre for this title'
+					genreString = 'No genre'
 				} else if (!r[0].genreTwo) {
 					genreString = `${r[0].genreOne}`
 				} else {
 					genreString = `${r[0].genreOne}, ${r[0].genreTwo}`
 				}
+				let userRec = msg.guild.members.find('id', r[0].userTag)
 				MOTD = {
 					embed: {
 						color: 0x6bb6d1,
@@ -572,29 +573,21 @@ client.on('message', msg => {
 						fields: [
 							{
 								name: `About the film:`,
-								value: `**Director:**   ${r[0].director}\n` +
-									`**Release Year:**   ${r[0].releaseYear}\n` +
-									`**Genre${r[0].genreTwo === null ? "" : "s"}:**   ${genreString}\n` +
-									`**Runtime:**   ${runtimeString}\n` +
-									`**Rating:**   ${ratingString}\n` +
-									`[See More](${r[0].url})\n\n` +
-									`***Suggested by*** <@${r[0].userTag}>`
+								value: `**Director:** ${r[0].director}  \n` +
+									`**Release Year:** ${r[0].releaseYear}\n` +
+									`**Genre${r[0].genreTwo === null ? "" : "s"}:** ${genreString}\n` +
+									`**Runtime:** ${runtimeString}\n` +
+									`**Rating:** ${ratingString}\n` +
+									`[See More](${r[0].url})\n\n`,
+								inline: true
 							},
 							{
-								name: '\u200b',
-								value: '\u200b'
-							},
-							{
-								name: "Not the droid you're looking for?",
-								value: `Type **${tokens.PREFIX}randmovie** to get another suggestion!`
-							},
-							{
-								name: '\u200b',
-								value: '\u200b'
-							},
-							{
-								name: 'I post a new movie here daily!',
-								value: `Want to submit your movie? Post your IMDB or Letterboxd link to ${recChannel}!`
+								name: "Want to suggest your movie?",
+								value:  `Post your link in **#${recChannel.name}**!\n\n` +
+										`**Not the droid you're looking for?**\n` +
+										`Try **${tokens.PREFIX}randmovie** for a random film!\n\n` +
+										`*Suggested by **${userRec.user.tag}***\n\n`,
+								inline: true
 							}
 						],
 						timestamp: new Date(),
@@ -698,22 +691,23 @@ function setEmbed() {
 			function saveEmbed(imageLink) {
 				let ratingString = runtimeString = genreString = '';
 				if (!r[0].rating) {
-					ratingString = 'No rating for this title'
+					ratingString = 'No rating'
 				} else {
 					ratingString = `${r[0].rating}/10`
 				}
 				if (!r[0].runtime) {
-					runtimeString = 'No runtime for this title'
+					runtimeString = 'No runtime'
 				} else {
 					runtimeString = `${r[0].runtime} mins`
 				}
 				if (!r[0].genreOne) {
-					genreString = 'No genre for this title'
+					genreString = 'No genre'
 				} else if (!r[0].genreTwo) {
 					genreString = `${r[0].genreOne}`
 				} else {
 					genreString = `${r[0].genreOne}, ${r[0].genreTwo}`
 				}
+				let userRec = msg.guild.members.find('id', r[0].userTag)
 				MOTD = {
 					embed: {
 						color: 0x6bb6d1,
@@ -727,29 +721,21 @@ function setEmbed() {
 						fields: [
 							{
 								name: `About the film:`,
-								value: `**Director:**   ${r[0].director}\n` +
-									`**Release Year:**   ${r[0].releaseYear}\n` +
-									`**Genre${r[0].genreTwo === null ? "" : "s"}:**   ${genreString}\n` +
-									`**Runtime:**   ${runtimeString}\n` +
-									`**Rating:**   ${ratingString}\n` +
-									`[See More](${r[0].url})\n\n` +
-									`***Suggested by*** <@${r[0].userTag}>`
+								value: `**Director:** ${r[0].director}\n` +
+									`**Release Year:** ${r[0].releaseYear}\n` +
+									`**Genre${r[0].genreTwo === null ? "" : "s"}:** ${genreString}\n` +
+									`**Runtime:** ${runtimeString}\n` +
+									`**Rating:** ${ratingString}\n` +
+									`[See More](${r[0].url})\n\n`,
+								inline: true
 							},
 							{
-								name: '\u200b',
-								value: '\u200b'
-							},
-							{
-								name: "Not the droid you're looking for?",
-								value: `Type **${tokens.PREFIX}randmovie** to get another suggestion!`
-							},
-							{
-								name: '\u200b',
-								value: '\u200b'
-							},
-							{
-								name: 'I post a new movie here daily!',
-								value: `Want to submit your movie? Post your IMDB or Letterboxd link to ${recChannel}!`
+								name: "Want to suggest your movie?",
+								value:  `Post your link in **#${recChannel.name}**!\n\n` +
+										`**Not the droid you're looking for?**\n` +
+										`Try **${tokens.PREFIX}randmovie** for a random film!\n\n` +
+										`*Suggested by **${userRec.user.tag}***\n\n`,
+								inline: true
 							}
 						],
 						timestamp: new Date(),
