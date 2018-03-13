@@ -541,7 +541,7 @@ client.on('message', msg => {
 			}
 
 			function saveEmbed(imageLink) {
-				let ratingString = runtimeString = genreString = directorString = '';
+				let ratingString = runtimeString = genreString, userString = directorString = '';
 				if (!r[0].rating) {
 					ratingString = 'No rating'
 				} else {
@@ -560,6 +560,11 @@ client.on('message', msg => {
 					genreString = `${r[0].genreOne}, ${r[0].genreTwo}`
 				}
 				let userRec = msg.guild.members.find('id', r[0].userTag)
+				if (userRec === null) {
+					userString = ''
+				} else {
+					userString = `*Suggested by **${userRec.user.tag}***\n\n`
+				}
 				MOTD = {
 					embed: {
 						color: 0x6bb6d1,
@@ -578,7 +583,7 @@ client.on('message', msg => {
 									`**Genre${r[0].genreTwo === null ? "" : "s"}:** ${genreString}\n` +
 									`**Runtime:** ${runtimeString}\n` +
 									`**Rating:** ${ratingString}\n` +
-									`[See More](${r[0].url})\n\n`,
+									`[See More](${r[0].url})`,
 								inline: true
 							},
 							{
@@ -586,7 +591,7 @@ client.on('message', msg => {
 								value:  `Post your link in **#${recChannel.name}**!\n\n` +
 										`**Not the droid you're looking for?**\n` +
 										`Try **${tokens.PREFIX}randmovie** for a random film!\n\n` +
-										`*Suggested by **${userRec.user.tag}***\n\n`,
+										`${userString}`,
 								inline: true
 							}
 						],
@@ -689,7 +694,7 @@ function setEmbed() {
 			}
 
 			function saveEmbed(imageLink) {
-				let ratingString = runtimeString = genreString = '';
+				let ratingString = runtimeString = userString = genreString = '';
 				if (!r[0].rating) {
 					ratingString = 'No rating'
 				} else {
@@ -708,6 +713,11 @@ function setEmbed() {
 					genreString = `${r[0].genreOne}, ${r[0].genreTwo}`
 				}
 				let userRec = msg.guild.members.find('id', r[0].userTag)
+				if (userRec === null) {
+					userString = ''
+				} else {
+					userString = `*Suggested by **${userRec.user.tag}***\n\n`
+				}
 				MOTD = {
 					embed: {
 						color: 0x6bb6d1,
@@ -726,7 +736,7 @@ function setEmbed() {
 									`**Genre${r[0].genreTwo === null ? "" : "s"}:** ${genreString}\n` +
 									`**Runtime:** ${runtimeString}\n` +
 									`**Rating:** ${ratingString}\n` +
-									`[See More](${r[0].url})\n\n`,
+									`[See More](${r[0].url})`,
 								inline: true
 							},
 							{
@@ -734,7 +744,7 @@ function setEmbed() {
 								value:  `Post your link in **#${recChannel.name}**!\n\n` +
 										`**Not the droid you're looking for?**\n` +
 										`Try **${tokens.PREFIX}randmovie** for a random film!\n\n` +
-										`*Suggested by **${userRec.user.tag}***\n\n`,
+										`${userString}`,
 								inline: true
 							}
 						],
