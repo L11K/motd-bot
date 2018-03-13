@@ -693,7 +693,7 @@ function setEmbed() {
 				if (!r[0].rating) {
 					ratingString = 'No rating'
 				} else {
-					ratingString = `${r[0].rating}/10`
+					ratingString = `${r[0].rating.toFixed(1)}/10`
 				}
 				if (!r[0].runtime) {
 					runtimeString = 'No runtime'
