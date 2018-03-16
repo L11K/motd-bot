@@ -318,22 +318,22 @@ client.on('message', msg => {
 								} else console.log(error)
 							})
 						} else if (url[0].includes('letterboxd.com/film/') && isUnique || url[0].includes('boxd.it') && isUnique) {
+							let boxdURL = url[0];
 							console.log(`[MOVIE REQUEST] (${date()} @${date(true)}): Making request for Letterboxd\n` +
-								`        URL:  ${url[0]}\n` +
+								`        URL:  ${boxdURL}\n` +
 								`        AUTHOR: ${msg.author.username}\n` +
 								`        -  AUTHOR_ID: ${msg.author.id}\n`);
 
-							if (url[0].includes('boxd.it')) {
+							if (boxdURL.includes('boxd.it')) {
 								console.log(`Attempting to expand url ${url[0]}`)
 								unshort(url[0], (err, url) => {
 									if (!err) {
 										console.log(`Expansion on Letterboxd link successful! Expanded URL: ${url}`)
-										url[0] = url;
-									} else console.log(`There was an error attempting to expand ${url[0]}:\n${err}`)
+										boxdURL = url;
+									} else console.log(`There was an error attempting to expand ${boxdURL}:\n${err}`)
 								})
 							}
-
-							request(url[0], function (error, response, html) {
+							request(boxdURL, function (error, response, html) {
 								if (!error) {
 									var $ = cheerio.load(html);
 
@@ -381,33 +381,41 @@ client.on('message', msg => {
 
 
 									// Get ratings
-									let ratingsUrl = url[0].substring(0, url[0].indexOf('film')) + 'csi/' + url[0].substring(url[0].indexOf('film'), url[0].length) + '/rating-histogram/'
+									let ratingsUrl = boxdURL.substring(0, boxdURL.indexOf('film')) + 'csi/' + boxdURL.substring(boxdURL.indexOf('film'), boxdURL.length) + '/rating-histogram/'
 
 									request(ratingsUrl, (e, r, h) => {
-										let currentTime = new Date()
-										let $$ = cheerio.load(h);
-										rating = $$('span.average-rating meta[itemprop="ratingValue"]').attr('content')
-										results.rating = parseFloat(rating);
-										if (parseInt(results.release) > currentTime.getFullYear()) {
-											console.log('Comes out in a later year')
-											futureRelease = true
-										} else if (isNaN(results.rating) && results.release === currentTime.getFullYear().toString()) {
-											console.log('Making request on imdb site');
-											request($('a[data-track-action="IMDb"]').attr('href'), (er, re, ht) => {
-												if (!er) {
-													let $$$ = cheerio.load(ht);
-													let releaseDate = new Date($$$('meta[itemprop="datePublished"]').attr('content'))
-													if (releaseDate > currentTime) {
-														console.log("Hasn't been released yet")
-														futureRelease = true;
+										if (h) {
+											let currentTime = new Date()
+											let $$ = cheerio.load(h);
+											rating = $$('span.average-rating meta[itemprop="ratingValue"]').attr('content')
+											results.rating = parseFloat(rating);
+											if (parseInt(results.release) > currentTime.getFullYear()) {
+												console.log('Comes out in a later year')
+												futureRelease = true
+											} else if (isNaN(results.rating) && results.release === currentTime.getFullYear().toString()) {
+												console.log('Making request on imdb site');
+												request($('a[data-track-action="IMDb"]').attr('href'), (er, re, ht) => {
+													if (!er) {
+														if (ht) {
+															let $$$ = cheerio.load(ht);
+															let releaseDate = new Date($$$('meta[itemprop="datePublished"]').attr('content'))
+															if (releaseDate > currentTime) {
+																console.log("Hasn't been released yet")
+																futureRelease = true;
+															}
+														} else {
+															console.log('nothing to show')
+														}
 													}
-												}
-											})
-										}
+												})
+											}
 
-										setTimeout(() => {
-											dataCheck()
-										}, 2000);
+											setTimeout(() => {
+												dataCheck()
+											}, 2000);
+										} else {
+											console.log('no html returned?')
+										}
 									})
 
 									function dataCheck() {
@@ -541,7 +549,7 @@ client.on('message', msg => {
 			}
 
 			function saveEmbed(imageLink) {
-				let ratingString = runtimeString = genreString, userString = directorString = '';
+				let ratingString = runtimeString = genreString = userString = '';
 				if (!r[0].rating) {
 					ratingString = 'No rating'
 				} else {
@@ -588,10 +596,10 @@ client.on('message', msg => {
 							},
 							{
 								name: "Want to suggest your movie?",
-								value:  `Post your link in **#${recChannel.name}**!\n\n` +
-										`**Not the droid you're looking for?**\n` +
-										`Try **${tokens.PREFIX}randmovie** for a random film!\n\n` +
-										`${userString}`,
+								value: `Post your link in **#${recChannel.name}**!\n\n` +
+									`**Not the droid you're looking for?**\n` +
+									`Try **${tokens.PREFIX}randmovie** for a random film!\n\n` +
+									`${userString}`,
 								inline: true
 							}
 						],
@@ -615,7 +623,7 @@ schedule.scheduleJob('0 0 * * *', () => {
 	setEmbed()
 })
 
-schedule.scheduleJob('0 0-20/4 * * *', () => {
+schedule.scheduleJob('0 4-20/4 * * *', () => {
 	console.log(`Sending embed for ${Date.now()}`)
 	sendEmbed();
 })
@@ -712,7 +720,7 @@ function setEmbed() {
 				} else {
 					genreString = `${r[0].genreOne}, ${r[0].genreTwo}`
 				}
-				let userRec = msg.guild.members.find('id', r[0].userTag)
+				let userRec = recChannel.guild.members.find('id', r[0].userTag)
 				if (userRec === null) {
 					userString = ''
 				} else {
@@ -741,10 +749,10 @@ function setEmbed() {
 							},
 							{
 								name: "Want to suggest your movie?",
-								value:  `Post your link in **#${recChannel.name}**!\n\n` +
-										`**Not the droid you're looking for?**\n` +
-										`Try **${tokens.PREFIX}randmovie** for a random film!\n\n` +
-										`${userString}`,
+								value: `Post your link in **#${recChannel.name}**!\n\n` +
+									`**Not the droid you're looking for?**\n` +
+									`Try **${tokens.PREFIX}randmovie** for a random film!\n\n` +
+									`${userString}`,
 								inline: true
 							}
 						],
