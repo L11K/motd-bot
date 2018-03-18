@@ -91,6 +91,25 @@ client.on('message', msg => {
 		deleteStuff(msg);
 	}
 
+	else if (msg.content.toLowerCase() === '!ranks' && msg.author.id !== tokens.BOT_ID && msg.channel.id === tokens.CHANNEL_ID && !msg.author.bot) {
+		con.query('SELECT userTag, COUNT(*) as numMovies FROM SUGGESTED GROUP BY userTag ORDER BY 2 DESC LIMIT 3', (err, rows, field) => {
+			if (!err) {
+				console.log(rows);
+				let topRecs = [];
+				let members = msg.guild.members;
+				for (let i = 0; i < rows.length; i++) {
+					if (members.find('id', rows[i].userTag)) {
+						topRecs.push(members.find('id', rows[i].userTag));
+					} else {
+						console.log('User not found, excluding from array');
+					}
+				}
+			} else {
+				throw err;
+			}
+		});
+	}
+
 	// Movie recommendations management
 	else if (msg.author.id !== tokens.BOT_ID && msg.channel.id === tokens.RECOMMENDATIONS_ID && !msg.author.bot) {
 
@@ -187,7 +206,7 @@ client.on('message', msg => {
 												var results = { title: "", director: "", runtime: "", genreOne: "", genreTwo: "", release: "", rating: "", url: url[0], user: msg.author.id };
 
 												// Get movie title
-												title = $('h1[itemprop="name"]').text().trim();
+												title = $('.title_wrapper > h1[itemprop="name"]').text().trim();
 												results.title = title.substring(0, (title.length - 7));
 
 												// Get movie director
