@@ -23,6 +23,18 @@ con.connect(function (err) {
 	console.log("Connected to database!");
 });
 
+schedule.scheduleJob('0 0 * * *', () => {
+	console.log("Setting embed (should be midnight)")
+	setEmbed()
+})
+
+schedule.scheduleJob('0 4-20/4 * * *', () => {
+	console.log(`Sending embed for ${Date.now()}`)
+	sendEmbed();
+})
+
+client.login(tokens.BOT_TOKEN);
+
 client.on('ready', () => {
 	console.log(`[INIT] (${date()} @${date(true)}): Logged into ${client.user.tag}\n` +
 		`    Guilds being moderated:`);
@@ -40,8 +52,28 @@ client.on('ready', () => {
 });
 
 client.on('message', msg => {
+	// Set embed
+	if (msg.content.toLowerCase() == '!testset' && msg.author.id == tokens.ADMIN_ID) {
+		setEmbed()
+	}
+
+	// Get embed
+	else if (msg.content.toLowerCase() == '!testsend' && msg.author.id == tokens.ADMIN_ID) {
+		sendEmbed()
+	}
+
+	else if (msg.content.toLowerCase() == '!cleardb' && msg.author.id == tokens.ADMIN_ID) {
+		console.log('Clearing Database!')
+		con.query('DELETE FROM suggested');
+		con.query('DELETE FROM used');
+	}
+	else if (msg.content.toLowerCase() == '!clearchannel' && msg.author.id == tokens.ADMIN_ID) {
+		console.log('Clearing Channel!')
+		deleteStuff(msg);
+	}
+
 	// Letterboxd channel management
-	if (msg.author.id !== tokens.BOT_ID && msg.channel.id === tokens.LETTERBOXD_ID) {
+	else if (msg.author.id !== tokens.BOT_ID && msg.channel.id === tokens.LETTERBOXD_ID) {
 		if (msg.content.includes('letterboxd.com')) {
 			var urlPosted = Array.from(getURL(msg.content));
 			if (urlPosted.length > 0) {
@@ -71,43 +103,234 @@ client.on('message', msg => {
 		}
 	}
 
-	// Set embed
-	else if (msg.content.toLowerCase() == '!testset' && msg.author.id == tokens.ADMIN_ID) {
-		setEmbed()
+	else if (msg.content.toLowerCase().includes('!movierank') && msg.author.id !== tokens.BOT_ID && msg.channel.id === tokens.CHANNEL_ID && !msg.author.bot) {
+		con.query(`SELECT userTag, COUNT(*) AS numMovies FROM suggested GROUP BY userTag ORDER BY 2 DESC`, (err, rows, field) => {
+			console.log(`[RANKS] Movie command issued\n    User: ${msg.author.tag}\n    Content: ${msg.content}`);
+			if (!err) {
+				if (rows.length > 0) {
+					let userID;
+					let invalidUser = false;
+					if (msg.content === '!movierank') {
+						console.log('User getting own rank')
+						userID = msg.author.id;
+					} else if (msg.content.includes('<@')) {
+						console.log('User looking for member\'s rank');
+						userID = msg.content.substring((msg.content.indexOf('@') + 1), msg.content.indexOf('>'))
+						if (userID.includes('!')) userID = userID.substring(1, userID.length);
+					} else {
+						console.log('Invalid user specification')
+						invalidUser = true;
+					}
+					if (!invalidUser) {
+						let userObj = msg.guild.members.find('id', userID);
+						let userMovie;
+						let rankIndex;
+						let userSuggested = false;
+						for (let i = 0; i < rows.length; i++) {
+							if (rows[i].userTag === userID) {
+								console.log(`ID ${rows[i].userTag} found! ${rows[i].numMovies} movie(s) posted!`)
+								userSuggested = true;
+								userMovie = rows[i];
+								rankIndex = i;
+							}
+						}
+						if (userSuggested) {
+							rankEmbed = {
+								embed: {
+									color: 0x6bb6d1,
+									author: {
+										name: `Stats for ${userObj.user.tag}`,
+										icon_url: userObj.user.avatarURL
+									},
+									fields: [
+										{
+											name: `Suggested ${userMovie.numMovies} movie${userMovie.numMovies > 1 ? 's' : ''}`,
+											value: `Rank **${rankIndex + 1}/${rows.length}**\n\u200b`
+										}
+									],
+									timestamp: new Date(),
+									footer: {
+										text: "BETA"
+									}
+								}
+							}
+							msg.channel.send(rankEmbed).then('Sent embed for user!');
+						} else {
+							console.log('User not found in Movies database')
+							if (msg.author.id === userID) {
+								msg.reply(`I don't have any recommendations from you! Head over to ${msg.guild.channels.find('id', tokens.RECOMMENDATIONS_ID)} and post your film link!`);
+							} else {
+								msg.channel.send(`I don't have any recommendations from **${userObj.user.username}**!`)
+							}
+						}
+					} else {
+						console.log('No user specified')
+						msg.reply('I was unable to get a user from your message! If you\'re looking for a user\'s rank, type `!movierank @User`')
+					}
+				} else {
+					console.log('Movies db is empty')
+					msg.channel.send('No movies have been recommended!');
+				}
+			}
+		});
 	}
 
-	// Get embed
-	else if (msg.content.toLowerCase() == '!testsend' && msg.author.id == tokens.ADMIN_ID) {
-		sendEmbed()
-	}
-
-	else if (msg.content.toLowerCase() == '!cleardb' && msg.author.id == tokens.ADMIN_ID) {
-		console.log('Clearing Database!')
-		con.query('DELETE FROM suggested');
-		con.query('DELETE FROM used');
-	}
-	else if (msg.content.toLowerCase() == '!clearchannel' && msg.author.id == tokens.ADMIN_ID) {
-		console.log('Clearing Channel!')
-		deleteStuff(msg);
-	}
-
-	else if (msg.content.toLowerCase() === '!ranks' && msg.author.id !== tokens.BOT_ID && msg.channel.id === tokens.CHANNEL_ID && !msg.author.bot) {
-		con.query('SELECT userTag, COUNT(*) as numMovies FROM SUGGESTED GROUP BY userTag ORDER BY 2 DESC LIMIT 3', (err, rows, field) => {
+	else if (msg.content.toLowerCase() === '!topmovie' && msg.author.id !== tokens.BOT_ID && msg.channel.id === tokens.CHANNEL_ID && !msg.author.bot) {
+		con.query('SELECT userTag, COUNT(*) AS numMovies FROM suggested GROUP BY userTag ORDER BY 2 DESC LIMIT 3', (err, rows, field) => {
 			if (!err) {
 				console.log(rows);
 				let topRecs = [];
 				let members = msg.guild.members;
 				for (let i = 0; i < rows.length; i++) {
 					if (members.find('id', rows[i].userTag)) {
-						topRecs.push(members.find('id', rows[i].userTag));
+						let memVar = members.find('id', rows[i].userTag);
+						topRecs.push({ 'name': `${i + 1}. ${memVar.user.tag}`, 'value': `${rows[i].numMovies} movie${rows[i].numMovies > 1 ? 's' : ''}\n\u200b` });
 					} else {
 						console.log('User not found, excluding from array');
 					}
+				}
+				if (topRecs.length > 0) {
+					topEmbed = {
+						embed: {
+							color: 0x6bb6d1,
+							author: {
+								name: `Top Suggestors`,
+								icon_url: "https://image.flaticon.com/icons/png/512/236/236626.png"
+							},
+							fields: topRecs,
+							timestamp: new Date(),
+							footer: {
+								text: "BETA"
+							}
+						}
+					}
+					msg.channel.send(topEmbed);
 				}
 			} else {
 				throw err;
 			}
 		});
+	}
+
+	// MOVIE OF THE DAY COMMAND
+	else if ((msg.content.toLowerCase() == `${tokens.PREFIX}movie` && (msg.channel.id == tokens.CHANNEL_ID || msg.channel.id == tokens.BAV_ID)) ||
+		(msg.content.toLowerCase().includes('what should i watch') && (msg.channel.id == tokens.CHANNEL_ID || msg.channel.id == tokens.BAV_ID)) ||
+		(msg.content.toLowerCase().includes('what i should watch') && (msg.channel.id == tokens.CHANNEL_ID || msg.channel.id == tokens.BAV_ID)) ||
+		(msg.content.toLowerCase().includes('what movie should i watch') && (msg.channel.id == tokens.CHANNEL_ID || msg.channel.id == tokens.BAV_ID)) ||
+		(msg.content.toLowerCase().includes('what movie i should watch') && (msg.channel.id == tokens.CHANNEL_ID || msg.channel.id == tokens.BAV_ID))) {
+		console.log(`[MOTD REQUEST] (${date()} @${date(true)}): Sending the movie of the day, details:\n` +
+			`        AUTHOR: ${msg.author.username}\n` +
+			`        -  AUTHOR_ID: ${msg.author.id}`);
+		sendEmbed(msg.channel.id);
+	}
+
+	else if ((msg.content.toLowerCase() == `${tokens.PREFIX}randmovie` && (msg.channel.id == tokens.CHANNEL_ID || msg.channel.id == tokens.BAV_ID) && !msg.author.bot) ||
+		(msg.content.toLowerCase().includes('netflix and chill') && (msg.channel.id == tokens.CHANNEL_ID || msg.channel.id == tokens.BAV_ID) && !msg.author.bot)) {
+		console.log(`[RANDMOVIE REQUEST] (${date()} @${date(true)}): Sending random movie, details:\n` +
+			`        AUTHOR: ${msg.author.username}\n` +
+			`        -  AUTHOR_ID: ${msg.author.id}`);
+		var recChannel = client.channels.find('id', tokens.RECOMMENDATIONS_ID);
+		msg.reply("let me see what I can find...")
+			.then(console.log(`Getting random movie for ${msg.author.tag}`))
+			.catch(console.error());
+		let MOTD = {};
+		con.query('SELECT * FROM suggested ORDER BY RAND() LIMIT 1', (e, r, f) => {
+			if (e) throw e;
+			console.log(`Random title selected:`);
+			console.log(r[0]);
+			var imageLink;
+
+			if (r[0].url.includes('imdb.com')) {
+				request(r[0].url, (error, response, html) => {
+					if (!error) {
+						var $ = cheerio.load(html);
+
+						imageLink = $('.poster').find('img')[0].attribs.src;
+
+						console.log('thumbnail url: ' + imageLink)
+						saveEmbed(imageLink);
+					} else console.log(error);
+				})
+			} else if (r[0].url.includes('letterboxd.com') || r[0].url.includes('boxd.it')) {
+				request(r[0].url, (error, response, html) => {
+					if (!error) {
+						var $ = cheerio.load(html);
+
+						imageLink = $('.film-poster').find('img')[0].attribs.src;
+
+						console.log('thumbnail url: ' + imageLink)
+						saveEmbed(imageLink)
+					} else console.log(error);
+				})
+			}
+
+			function saveEmbed(imageLink) {
+				let ratingString = runtimeString = genreString = userString = '';
+				if (!r[0].rating) {
+					ratingString = 'No rating'
+				} else {
+					ratingString = `${r[0].rating.toFixed(1)}/10`
+				}
+				if (!r[0].runtime) {
+					runtimeString = 'No runtime'
+				} else {
+					runtimeString = `${r[0].runtime} mins`
+				}
+				if (!r[0].genreOne) {
+					genreString = 'No genre'
+				} else if (!r[0].genreTwo) {
+					genreString = `${r[0].genreOne}`
+				} else {
+					genreString = `${r[0].genreOne}, ${r[0].genreTwo}`
+				}
+				let userRec = msg.guild.members.find('id', r[0].userTag)
+				if (userRec === null) {
+					userString = ''
+				} else {
+					userString = `*Suggested by **${userRec.user.tag}***\n\n`
+				}
+				MOTD = {
+					embed: {
+						color: 0x6bb6d1,
+						author: {
+							name: `How about ${r[0].title}?`,
+							icon_url: "https://image.flaticon.com/icons/png/512/236/236626.png"
+						},
+						thumbnail: {
+							url: imageLink
+						},
+						fields: [
+							{
+								name: `About the film:`,
+								value: `**Director:** ${r[0].director}  \n` +
+									`**Release Year:** ${r[0].releaseYear}\n` +
+									`**Genre${r[0].genreTwo === null ? "" : "s"}:** ${genreString}\n` +
+									`**Runtime:** ${runtimeString}\n` +
+									`**Rating:** ${ratingString}\n` +
+									`[See More](${r[0].url})`,
+								inline: true
+							},
+							{
+								name: "Want to suggest your movie?",
+								value: `Post your link in **#${recChannel.name}**!\n\n` +
+									`**Not the droid you're looking for?**\n` +
+									`Try **${tokens.PREFIX}randmovie** for a random film!\n\n` +
+									`${userString}`,
+								inline: true
+							}
+						],
+						timestamp: new Date(),
+						footer: {
+							text: "BETA"
+						}
+					}
+				}
+				console.log(`Attempting to send embed for user ${msg.author.tag}`)
+				msg.channel.send(MOTD)
+					.then(console.log("Embed was sent!"))
+					.catch(console.error());
+			}
+		})
 	}
 
 	// Movie recommendations management
@@ -514,138 +737,7 @@ client.on('message', msg => {
 			}
 		}
 	}
-
-	// MOVIE OF THE DAY COMMAND
-	else if ((msg.content.toLowerCase() == `${tokens.PREFIX}movie` && (msg.channel.id == tokens.CHANNEL_ID || msg.channel.id == tokens.BAV_ID)) ||
-		(msg.content.toLowerCase().includes('what should i watch') && (msg.channel.id == tokens.CHANNEL_ID || msg.channel.id == tokens.BAV_ID)) ||
-		(msg.content.toLowerCase().includes('what i should watch') && (msg.channel.id == tokens.CHANNEL_ID || msg.channel.id == tokens.BAV_ID)) ||
-		(msg.content.toLowerCase().includes('what movie should i watch') && (msg.channel.id == tokens.CHANNEL_ID || msg.channel.id == tokens.BAV_ID)) ||
-		(msg.content.toLowerCase().includes('what movie i should watch') && (msg.channel.id == tokens.CHANNEL_ID || msg.channel.id == tokens.BAV_ID))) {
-		console.log(`[MOTD REQUEST] (${date()} @${date(true)}): Sending the movie of the day, details:\n` +
-			`        AUTHOR: ${msg.author.username}\n` +
-			`        -  AUTHOR_ID: ${msg.author.id}`);
-		sendEmbed(msg.channel.id);
-	}
-
-	else if ((msg.content.toLowerCase() == `${tokens.PREFIX}randmovie` && (msg.channel.id == tokens.CHANNEL_ID || msg.channel.id == tokens.BAV_ID) && !msg.author.bot) ||
-		(msg.content.toLowerCase().includes('netflix and chill') && (msg.channel.id == tokens.CHANNEL_ID || msg.channel.id == tokens.BAV_ID) && !msg.author.bot)) {
-		console.log(`[RANDMOVIE REQUEST] (${date()} @${date(true)}): Sending random movie, details:\n` +
-			`        AUTHOR: ${msg.author.username}\n` +
-			`        -  AUTHOR_ID: ${msg.author.id}`);
-		var recChannel = client.channels.find('id', tokens.RECOMMENDATIONS_ID);
-		msg.reply("let me see what I can find...")
-			.then(console.log(`Getting random movie for ${msg.author.tag}`))
-			.catch(console.error());
-		let MOTD = {};
-		con.query('SELECT * FROM suggested ORDER BY RAND() LIMIT 1', (e, r, f) => {
-			if (e) throw e;
-			console.log(`Random title selected:`);
-			console.log(r[0]);
-			var imageLink;
-
-			if (r[0].url.includes('imdb.com')) {
-				request(r[0].url, (error, response, html) => {
-					if (!error) {
-						var $ = cheerio.load(html);
-
-						imageLink = $('.poster').find('img')[0].attribs.src;
-
-						console.log('thumbnail url: ' + imageLink)
-						saveEmbed(imageLink);
-					} else console.log(error);
-				})
-			} else if (r[0].url.includes('letterboxd.com') || r[0].url.includes('boxd.it')) {
-				request(r[0].url, (error, response, html) => {
-					if (!error) {
-						var $ = cheerio.load(html);
-
-						imageLink = $('.film-poster').find('img')[0].attribs.src;
-
-						console.log('thumbnail url: ' + imageLink)
-						saveEmbed(imageLink)
-					} else console.log(error);
-				})
-			}
-
-			function saveEmbed(imageLink) {
-				let ratingString = runtimeString = genreString = userString = '';
-				if (!r[0].rating) {
-					ratingString = 'No rating'
-				} else {
-					ratingString = `${r[0].rating.toFixed(1)}/10`
-				}
-				if (!r[0].runtime) {
-					runtimeString = 'No runtime'
-				} else {
-					runtimeString = `${r[0].runtime} mins`
-				}
-				if (!r[0].genreOne) {
-					genreString = 'No genre'
-				} else if (!r[0].genreTwo) {
-					genreString = `${r[0].genreOne}`
-				} else {
-					genreString = `${r[0].genreOne}, ${r[0].genreTwo}`
-				}
-				let userRec = msg.guild.members.find('id', r[0].userTag)
-				if (userRec === null) {
-					userString = ''
-				} else {
-					userString = `*Suggested by **${userRec.user.tag}***\n\n`
-				}
-				MOTD = {
-					embed: {
-						color: 0x6bb6d1,
-						author: {
-							name: `How about ${r[0].title}?`,
-							icon_url: "https://image.flaticon.com/icons/png/512/236/236626.png"
-						},
-						thumbnail: {
-							url: imageLink
-						},
-						fields: [
-							{
-								name: `About the film:`,
-								value: `**Director:** ${r[0].director}  \n` +
-									`**Release Year:** ${r[0].releaseYear}\n` +
-									`**Genre${r[0].genreTwo === null ? "" : "s"}:** ${genreString}\n` +
-									`**Runtime:** ${runtimeString}\n` +
-									`**Rating:** ${ratingString}\n` +
-									`[See More](${r[0].url})`,
-								inline: true
-							},
-							{
-								name: "Want to suggest your movie?",
-								value: `Post your link in **#${recChannel.name}**!\n\n` +
-									`**Not the droid you're looking for?**\n` +
-									`Try **${tokens.PREFIX}randmovie** for a random film!\n\n` +
-									`${userString}`,
-								inline: true
-							}
-						],
-						timestamp: new Date(),
-						footer: {
-							text: "BETA"
-						}
-					}
-				}
-				console.log(`Attempting to send embed for user ${msg.author.tag}`)
-				msg.channel.send(MOTD)
-					.then(console.log("Embed was sent!"))
-					.catch(console.error());
-			}
-		})
-	}
 });
-
-schedule.scheduleJob('0 0 * * *', () => {
-	console.log("Setting embed (should be midnight)")
-	setEmbed()
-})
-
-schedule.scheduleJob('0 4-20/4 * * *', () => {
-	console.log(`Sending embed for ${Date.now()}`)
-	sendEmbed();
-})
 
 let deleteStuff = (msg) => {
 	let count = 0;
@@ -796,7 +888,7 @@ function setEmbed() {
 
 							con.query(`INSERT INTO used VALUES ("${r[0].title}", "${r[0].director}", ${r[0].releaseYear}, ${r[0].runtime}, ${r[0].genreOne ? `"${r[0].genreOne}"` : null}, ${r[0].genreTwo ? `"${r[0].genreTwo}"` : null}, ${r[0].rating}, "${r[0].url}", "${r[0].userTag}")`, (error, results, fields) => {
 								if (error) throw error;
-								console.log(`Successfully entered into used DB, affected rows:  ${results.affectedRows}`);
+								console.log(`Suclient.login(tokens.BOT_TOKEN);ccessfully entered into used DB, affected rows:  ${results.affectedRows}`);
 							})
 						})
 					})
@@ -838,5 +930,3 @@ function ValidURL(str) {
 	var regexp = /(ftp|http|https):\/\/(\w+:{0,1}\w*@)?(\S+)(:[0-9]+)?(\/|\/([\w#!:.?+=&%@!\-\/]))?/
 	return regexp.test(str);
 }
-
-client.login(tokens.BOT_TOKEN);
