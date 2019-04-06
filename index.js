@@ -1,9 +1,10 @@
+require('process').exit();
+
 const Discord = require("discord.js");
 const client = new Discord.Client();
 var fs = require('fs');
 var util = require('util');
 var date = require('get-date');
-var tokens = require('./tokens.json');
 var request = require('request');
 var cheerio = require('cheerio');
 var getURL = require('get-urls');
@@ -12,10 +13,10 @@ var schedule = require('node-schedule');
 var unshort = require('unshort');
 
 var con = mysql.createConnection({
-	host: tokens.DB_HOST,
-	user: tokens.DB_USER,
-	password: tokens.DB_PSWD,
-	database: tokens.DB_NAME
+	host: process.env.DB_HOST,
+	user: process.env.DB_USER,
+	password: process.env.DB_PSWD,
+	database: process.env.DB_NAME
 });
 
 con.connect(function (err) {
@@ -26,7 +27,7 @@ con.connect(function (err) {
 client.on('ready', () => {
 	console.log(`[INIT] (${date()} @${date(true)}): Logged into ${client.user.tag}\n` +
 		`    Guilds being moderated:`);
-	client.user.setActivity(`MOTD | ${tokens.PREFIX}movie`)
+	//client.user.setActivity(`MOTD | ${process.env.PREFIX}movie`)
 	client.guilds.forEach((guild) => {
 		guildStamp = guild.joinedAt;
 		console.log(
@@ -41,7 +42,7 @@ client.on('ready', () => {
 
 client.on('message', msg => {
 	// Letterboxd channel management
-	if (msg.author.id !== tokens.BOT_ID && msg.channel.id === tokens.LETTERBOXD_ID) {
+	if (msg.author.id !== process.env.BOT_ID && msg.channel.id === process.env.LETTERBOXD_ID) {
 		if (msg.content.includes('letterboxd.com')) {
 			var urlPosted = Array.from(getURL(msg.content));
 			if (urlPosted.length > 0) {
@@ -72,27 +73,27 @@ client.on('message', msg => {
 	}
 
 	// Set embed
-	else if (msg.content.toLowerCase() == '!testset' && msg.author.id == tokens.ADMIN_ID) {
+	else if (msg.content.toLowerCase() == '!testset' && msg.author.id == process.env.ADMIN_ID) {
 		setEmbed()
 	}
 
 	// Get embed
-	else if (msg.content.toLowerCase() == '!testsend' && msg.author.id == tokens.ADMIN_ID) {
+	else if (msg.content.toLowerCase() == '!testsend' && msg.author.id == process.env.ADMIN_ID) {
 		sendEmbed()
 	}
 
-	else if (msg.content.toLowerCase() == '!cleardb' && msg.author.id == tokens.ADMIN_ID) {
+	else if (msg.content.toLowerCase() == '!cleardb' && msg.author.id == process.env.ADMIN_ID) {
 		console.log('Clearing Database!')
 		con.query('DELETE FROM suggested');
 		con.query('DELETE FROM used');
 	}
-	else if (msg.content.toLowerCase() == '!clearchannel' && msg.author.id == tokens.ADMIN_ID) {
+	else if (msg.content.toLowerCase() == '!clearchannel' && msg.author.id == process.env.ADMIN_ID) {
 		console.log('Clearing Channel!')
 		deleteStuff(msg);
 	}
 
 	// Movie recommendations management
-	else if (msg.author.id !== tokens.BOT_ID && msg.channel.id === tokens.RECOMMENDATIONS_ID && !msg.author.bot) {
+	else if (msg.author.id !== process.env.BOT_ID && msg.channel.id === process.env.RECOMMENDATIONS_ID && !msg.author.bot) {
 
 		var url = Array.from(getURL(msg.content));
 
@@ -497,23 +498,23 @@ client.on('message', msg => {
 	}
 
 	// MOVIE OF THE DAY COMMAND
-	else if ((msg.content.toLowerCase() == `${tokens.PREFIX}movie` && (msg.channel.id == tokens.CHANNEL_ID || msg.channel.id == tokens.BAV_ID)) ||
-		(msg.content.toLowerCase().includes('what should i watch') && (msg.channel.id == tokens.CHANNEL_ID || msg.channel.id == tokens.BAV_ID)) ||
-		(msg.content.toLowerCase().includes('what i should watch') && (msg.channel.id == tokens.CHANNEL_ID || msg.channel.id == tokens.BAV_ID)) ||
-		(msg.content.toLowerCase().includes('what movie should i watch') && (msg.channel.id == tokens.CHANNEL_ID || msg.channel.id == tokens.BAV_ID)) ||
-		(msg.content.toLowerCase().includes('what movie i should watch') && (msg.channel.id == tokens.CHANNEL_ID || msg.channel.id == tokens.BAV_ID))) {
+	else if ((msg.content.toLowerCase() == `${process.env.PREFIX}movie` && (msg.channel.id == process.env.CHANNEL_ID || msg.channel.id == process.env.BAV_ID)) ||
+		(msg.content.toLowerCase().includes('what should i watch') && (msg.channel.id == process.env.CHANNEL_ID || msg.channel.id == process.env.BAV_ID)) ||
+		(msg.content.toLowerCase().includes('what i should watch') && (msg.channel.id == process.env.CHANNEL_ID || msg.channel.id == process.env.BAV_ID)) ||
+		(msg.content.toLowerCase().includes('what movie should i watch') && (msg.channel.id == process.env.CHANNEL_ID || msg.channel.id == process.env.BAV_ID)) ||
+		(msg.content.toLowerCase().includes('what movie i should watch') && (msg.channel.id == process.env.CHANNEL_ID || msg.channel.id == process.env.BAV_ID))) {
 		console.log(`[MOTD REQUEST] (${date()} @${date(true)}): Sending the movie of the day, details:\n` +
 			`        AUTHOR: ${msg.author.username}\n` +
 			`        -  AUTHOR_ID: ${msg.author.id}`);
 		sendEmbed(msg.channel.id);
 	}
 
-	else if ((msg.content.toLowerCase() == `${tokens.PREFIX}randmovie` && (msg.channel.id == tokens.CHANNEL_ID || msg.channel.id == tokens.BAV_ID) && !msg.author.bot) ||
-		(msg.content.toLowerCase().includes('netflix and chill') && (msg.channel.id == tokens.CHANNEL_ID || msg.channel.id == tokens.BAV_ID) && !msg.author.bot)) {
+	else if ((msg.content.toLowerCase() == `${process.env.PREFIX}randmovie` && (msg.channel.id == process.env.CHANNEL_ID || msg.channel.id == process.env.BAV_ID) && !msg.author.bot) ||
+		(msg.content.toLowerCase().includes('netflix and chill') && (msg.channel.id == process.env.CHANNEL_ID || msg.channel.id == process.env.BAV_ID) && !msg.author.bot)) {
 		console.log(`[RANDMOVIE REQUEST] (${date()} @${date(true)}): Sending random movie, details:\n` +
 			`        AUTHOR: ${msg.author.username}\n` +
 			`        -  AUTHOR_ID: ${msg.author.id}`);
-		var recChannel = client.channels.find('id', tokens.RECOMMENDATIONS_ID);
+		var recChannel = client.channels.find(c => c.id == process.env.RECOMMENDATIONS_ID);
 		msg.reply("let me see what I can find...")
 			.then(console.log(`Getting random movie for ${msg.author.tag}`))
 			.catch(console.error());
@@ -567,7 +568,7 @@ client.on('message', msg => {
 				} else {
 					genreString = `${r[0].genreOne}, ${r[0].genreTwo}`
 				}
-				let userRec = msg.guild.members.find('id', r[0].userTag)
+				let userRec = msg.guild.members.find(c => c.id == r[0].userTag)
 				if (userRec === null) {
 					userString = ''
 				} else {
@@ -598,9 +599,9 @@ client.on('message', msg => {
 								name: "Want to suggest your movie?",
 								value: `Post your link in **#${recChannel.name}**!\n\n` +
 									`**Not the droid you're looking for?**\n` +
-									`Try **${tokens.PREFIX}randmovie** for a random film!\n\n` +
+									`Try **${process.env.PREFIX}randmovie** for a random film!\n\n` +
 									`${userString}`,
-								inline: true
+								inline: false
 							}
 						],
 						timestamp: new Date(),
@@ -623,7 +624,7 @@ schedule.scheduleJob('0 0 * * *', () => {
 	setEmbed()
 })
 
-schedule.scheduleJob('0 4-20/4 * * *', () => {
+schedule.scheduleJob('0 4-20/168 * * *', () => {
 	console.log(`Sending embed for ${Date.now()}`)
 	sendEmbed();
 })
@@ -659,8 +660,8 @@ let deleteStuff = (msg) => {
 
 function setEmbed() {
 	console.log(`Attempting to set a new movie of the day!`)
-	let recChannel = client.channels.find('id', tokens.RECOMMENDATIONS_ID);
-	let movieChannel = client.channels.find('id', tokens.CHANNEL_ID);
+	let recChannel = client.channels.find(c => c.id == process.env.RECOMMENDATIONS_ID);
+	let movieChannel = client.channels.find(c => c.id == process.env.CHANNEL_ID);
 	let MOTD = {};
 	con.query('CHECKSUM TABLE suggested, used', (error, rows, field) => {
 		if (error) throw error;
@@ -720,7 +721,7 @@ function setEmbed() {
 				} else {
 					genreString = `${r[0].genreOne}, ${r[0].genreTwo}`
 				}
-				let userRec = recChannel.guild.members.find('id', r[0].userTag)
+				let userRec = recChannel.guild.members.find(c => c.id == r[0].userTag)
 				if (userRec === null) {
 					userString = ''
 				} else {
@@ -751,7 +752,7 @@ function setEmbed() {
 								name: "Want to suggest your movie?",
 								value: `Post your link in **#${recChannel.name}**!\n\n` +
 									`**Not the droid you're looking for?**\n` +
-									`Try **${tokens.PREFIX}randmovie** for a random film!\n\n` +
+									`Try **${process.env.PREFIX}randmovie** for a random film!\n\n` +
 									`${userString}`,
 								inline: true
 							}
@@ -788,8 +789,8 @@ function setEmbed() {
 	}
 }
 
-function sendEmbed(idToSend = tokens.CHANNEL_ID) {
-	let movieChannel = client.channels.find('id', idToSend);
+function sendEmbed(idToSend = process.env.CHANNEL_ID) {
+	let movieChannel = client.channels.find(c => c.id == idToSend);
 	console.log('Attempting to read file')
 	let embed;
 	fs.readFile('movie.json', (err, data) => {
@@ -820,4 +821,4 @@ function ValidURL(str) {
 	return regexp.test(str);
 }
 
-client.login(tokens.BOT_TOKEN);
+client.login(process.env.BOT_TOKEN);
