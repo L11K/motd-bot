@@ -1,8 +1,8 @@
-# MOTD-Bot
+# MOTW-Bot
 Discord bot aimed towards collecting user suggested films to suggest a new movie.
 
 ## About
-The bot collects IMDB and Letterboxd film suggestions from users and recommends a random film from the database.
+The bot tries to collects IMDB and Letterboxd film suggestions from users and recommends a random film from the database.
 
 * **Film collection:**
 
